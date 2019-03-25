@@ -16,6 +16,7 @@ import tkinter as tk
 from tkinter import PhotoImage
 import os.path
 import os
+from pprint import pprint
  
 #column_reference = "1 2 3 4 5 6 7 8".split(" ")
 column_reference = "a b c d e f g h".split(" ")
@@ -235,13 +236,13 @@ class Controller(object):
         so, whenever there are an even number of clicks, use the most recent to two to perform a move
         then update the display
         '''
-        j = event.x/TILE_WIDTH  
+        j = event.x//TILE_WIDTH  
         #  the / operator is called integer division
         # it returns the number of times TILE_WIDTH goes into event.x ignoring any remainder
         # eg: 2/2 = 1, 3/2 = 1, 11/5 = 2 and so on
         # so, it should return a number between 0 (if x < TILE_WIDTH) though to 7
-        i = event.y/TILE_WIDTH  
-         
+        i = event.y//TILE_WIDTH  
+        print(j, i) 
         self.clickList.append(BoardLocation(i, j))  
         # just maintain a list of all of the moves
         # this list shouldn't be used to replay a series of moves because that is something
@@ -249,6 +250,7 @@ class Controller(object):
         # keep a record of moves in the model. 
         if len(self.clickList)%2 ==0:
             # move complete, execute the move
+            print(self.clickList)
             self.m.move(self.clickList[-2], self.clickList[-1])
             # use the second last entry in the clickList and the last entry in the clickList
             self.update_display()
