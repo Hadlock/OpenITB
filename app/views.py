@@ -7,7 +7,7 @@ from .constants import TILE_WIDTH, EMPTY_SQUARE,\
     ISOMETRIC_TILE_WIDTH, ISOMETRIC_TILE_HEIGHT, BOARD_WIDTH, \
     BOARD_HEIGHT, ISOMETRIC_BOARD_WIDTH, \
     DATA_DIR, ISOMETRIC_DATA_DIR, \
-    ISOMETRIC_TILES, TILES
+    ISOMETRIC_TILES, TILES, COLUMN_REFERENCE
 
 class View(tk.Frame):
     ''' view '''
@@ -215,6 +215,12 @@ class IsometricView(tk.Frame):
         self.draw_empty_board(debug_board=debug_board)
         if not debug_board:
             self.draw_pieces(board)
+
+        print("%s: %s"%(" ", COLUMN_REFERENCE))
+        print("-"*50)
+        for i, row in enumerate(board):
+            row_marker = 8-i
+            print("%s: %s"%(row_marker, row))
 
         # first draw the empty board
         # then draw the pieces
