@@ -1,4 +1,5 @@
 #/usr/bin/python3
+''' handles views'''
 import os
 import tkinter as tk
 from tkinter import PhotoImage
@@ -57,6 +58,7 @@ TILES = {"black_tile":"black_tile.gif",
     }
 
 class View(tk.Frame):
+    ''' view '''
     def __init__(self,  parent = None):
         tk.Frame.__init__(self, parent)
         self.canvas = tk.Canvas(self, width=BOARD_WIDTH, height=BOARD_HEIGHT)
@@ -163,6 +165,7 @@ class View(tk.Frame):
         self.draw_empty_board()
 
 class Isometric_View(tk.Frame):
+    ''' three quarter overhead view '''
     def __init__(self,  parent = None):
         tk.Frame.__init__(self, parent)
         self.parent = parent
