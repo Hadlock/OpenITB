@@ -26,8 +26,9 @@ class Controller(object):
         # this binds the handle_click method to the view's canvas for left button down
         # self.view2.canvas.bind("<Button-1>",  self.handle_click)
         self.click_list = []
-        # I have kept click_list here, and not in the model, because it is a record of what is happening # pylint: disable=C0301
-        # in the view (ie click events) rather than something that the model deals with (eg moves).
+        # I have kept click_list here, and not in the model, because it is
+        # a record of what is happening in the view (ie click events) rather
+        # than something that the modelmdeals with (eg moves).
 
     def run(self, debug_mode=False):
         ''' initializes tk mainloop'''
@@ -41,8 +42,8 @@ class Controller(object):
         into a position on the chess board
         add this to a list of clicked positions
         every first click is treated as a "from" and every second click as a"to"
-        so, whenever there are an even number of clicks, use the most recent to two to perform a move
-        then update the display
+        so, whenever there are an even number of clicks, use the most recent to two to perform
+        a move then update the display
         '''
         j = event.x//TILE_WIDTH
         #  the / operator is called integer division
@@ -69,12 +70,12 @@ class Controller(object):
         into a position on the chess board
         add this to a list of clicked positions
         every first click is treated as a "from" and every second click as a"to"
-        so, whenever there are an even number of clicks, use the most recent to two to perform a move
-        then update the display
+        so, whenever there are an even number of clicks, use the most recent to two to perform
+        a move then update the display
         '''
         i, j = self.xy_to_ij(event.x, event.y)
-        self.click_list.append(BoardLocation(7-i, j))  # 7-i because the Model stores the board in reverse row order.
-        # just maintain a list of all of the moves
+        self.click_list.append(BoardLocation(7-i, j))  # 7-i because the Model stores the board in
+        # reverse row order. just maintain a list of all of the moves
         # this list shouldn't be used to replay a series of moves because that is something
         # which should be stored in the model - but it wouldn't be much trouble to
         # keep a record of moves in the model.

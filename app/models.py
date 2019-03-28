@@ -8,6 +8,8 @@ class Model(object):
         '''create a chess board with pieces positioned for a new game
         row ordering is reversed from normal chess representations
         but corresponds to a top left screen coordinate
+
+        self.board is a list of 8 character arrays
         '''
 
         self.board = []
