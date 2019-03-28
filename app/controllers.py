@@ -130,6 +130,14 @@ class Controller(object):
         print("a: " + str(a))
         b = (y+30*a)/30.0 # this calculates the 'Y' in the model from gui # pylint: disable=C0103
         print("b: " + str(b))
+
+
+        y = self.view.canvas_height-y # invert it
+        y = y - 4*ISOMETRIC_TILE_HEIGHT # Get y relative to the height of the corner
+        a = (x-2*y)/120.0 # this calculates the 'X' in the model from gui # pylint: disable=C0103
+        b = (y+30*a)/30.0 # this calculates the 'Y' in the model from gui # pylint: disable=C0103
+
+
         # if either of these is <0 this means that the click is off the board (to the left or below)
         # if the number is greater than -1, but less than 0, int() will round it up to 0
         # so we need to explicitly return -1 rather than just int(a) etc.

@@ -92,7 +92,6 @@ class IsometricView(tk.Frame):
             # and the columns correspond to the x axis
             # isometric pieces need to be drawn by reference to a bottom corner of the tile,
             #  We are using SW (ie bottom left).
-            print(row)
             for i, piece in enumerate(reversed(row)): # columns = x axis
                 if piece == EMPTY_SQUARE:
                     continue  # skip empty tiles
