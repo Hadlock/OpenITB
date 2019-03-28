@@ -73,7 +73,10 @@ class Controller(object):
         so, whenever there are an even number of clicks, use the most recent to two to perform
         a move then update the display
         '''
+        # i, j represent the X-Y coordinates on the board in chess notation, assuming a 0 index
         i, j = self.xy_to_ij(event.x, event.y)
+        print("event x: " + str(event.x) + " y: " + str(event.y))
+        print("and i: " + str(i) + " j: " + str(j))
         self.click_list.append(BoardLocation(7-i, j))  # 7-i because the Model stores the board in
         # reverse row order. just maintain a list of all of the moves
         # this list shouldn't be used to replay a series of moves because that is something
@@ -82,6 +85,7 @@ class Controller(object):
         if len(self.click_list)%2 == 0:
             # move complete, execute the move
             self.model.move(self.click_list[-2], self.click_list[-1])
+            print(str(self.click_list[-2]) + " ; " + str(self.click_list[-1]))
             # use the second last entry in the click_list and the last entry in the click_list
             self.update_display()
 
@@ -119,14 +123,16 @@ class Controller(object):
         '''
 
         y = self.view.canvas_height-y # invert it
+        print("y1: " + str(y))
         y = y - 4*ISOMETRIC_TILE_HEIGHT # Get y relative to the height of the corner
-
-        a = (x-2*y)/120.0 # pylint: disable=C0103
-        b = (y+30*a)/30.0 # pylint: disable=C0103
+        print("y2: " + str(y))
+        a = (x-2*y)/120.0 # this calculates the 'X' in the model from gui # pylint: disable=C0103
+        print("a: " + str(a))
+        b = (y+30*a)/30.0 # this calculates the 'Y' in the model from gui # pylint: disable=C0103
+        print("b: " + str(b))
         # if either of these is <0 this means that the click is off the board (to the left or below)
         # if the number is greater than -1, but less than 0, int() will round it up to 0
         # so we need to explicitly return -1 rather than just int(a) etc.
-
         return (int(b) if b >= 0 else -1, int(a) if a >= 0 else -1)
 
     def update_display(self, debug_board=False):

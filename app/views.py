@@ -60,7 +60,7 @@ class IsometricView(tk.Frame):
                     tile = self.images['white_tile']
                 self.canvas.create_image(x, y, anchor=tk.SW, image=tile)
 
-                debug_board=True
+                debug_board = True
                 if debug_board:  # implicitly this means if debug_board == True.
                     ''' If we are drawing a debug board, draw an arrow showing top left
                     and its coordinates. ''' # pylint: disable=W0105
@@ -92,8 +92,8 @@ class IsometricView(tk.Frame):
             # and the columns correspond to the x axis
             # isometric pieces need to be drawn by reference to a bottom corner of the tile,
             #  We are using SW (ie bottom left).
-
-            for i, piece in enumerate(row): # columns = x axis
+            print(row)
+            for i, piece in enumerate(reversed(row)): # columns = x axis
                 if piece == EMPTY_SQUARE:
                     continue  # skip empty tiles
                 tile = self.images[piece]
