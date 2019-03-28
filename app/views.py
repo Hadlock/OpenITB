@@ -1,5 +1,6 @@
 #/usr/bin/python3
 ''' handles views'''
+# pylint: disable=R0901
 import os
 import tkinter as tk
 from tkinter import PhotoImage
@@ -17,9 +18,9 @@ class View(tk.Frame):
         self.canvas.pack()
         self.images = {}
         for image_file_name in TILES:
-            f = os.path.join(DATA_DIR, TILES[image_file_name])
+            f = os.path.join(DATA_DIR, TILES[image_file_name]) # pylint: disable=C0103
             if not os.path.exists(f):
-                print("Error: Cannot find image file: %s at %s - aborting"%(TILES[image_file_name], f))
+                print("Error: Cannot find image file: %s at %s - aborting"%(TILES[image_file_name], f)) # pylint: disable=C0301
                 exit(-1)
             self.images[image_file_name] = PhotoImage(file=f)
             '''This opens each of the image files, converts the data into a form that Tkinter
@@ -38,7 +39,7 @@ class View(tk.Frame):
         for i in items:
             self.canvas.delete(i)
 
-    def draw_row(self, y, first_tile_white=True, debug_board=False):
+    def draw_row(self, y, first_tile_white=True, debug_board=False): # pylint: disable=C0103
         ''' draw a single row of alternating black and white tiles,
         the colour of the first tile is determined by first_tile_white
         if debug_board is set  show the coordinates of each of the tile corners
@@ -49,7 +50,7 @@ class View(tk.Frame):
         else:
             remainder = 0
         for i in range(8):
-            x = i*TILE_WIDTH
+            x = i*TILE_WIDTH # pylint: disable=C0103
             if i%2 == remainder:
                 # i %2 is the remainder after dividing i by 2
                 # so i%2 will always be either 0 (no remainder- even numbers) or
@@ -65,7 +66,7 @@ class View(tk.Frame):
             # the canvas size
             if debug_board:  # implicitly this means if debug_board == True.
                 ''' If we are drawing a debug board, draw an arrow showing top left
-                and its coordinates. '''
+                and its coordinates. ''' # pylint: disable=W0105
                 text_pos = (x+TILE_WIDTH/2, y+TILE_WIDTH/2)
                 line_end = (x+TILE_WIDTH/4, y +TILE_WIDTH/4)
                 self.canvas.create_line((x, y), line_end, arrow=tk.FIRST)
@@ -76,9 +77,9 @@ class View(tk.Frame):
     def draw_empty_board(self, debug_board=False):
         ''' draw an empty board on the canvas
         if debug_board is set  show the coordinates of each of the tile corners'''
-        y = 0
+        y = 0 # pylint: disable=C0103
         for i in range(8): # draw 8 rows
-            y = i*TILE_WIDTH
+            y = i*TILE_WIDTH # pylint: disable=C0103
             # each time, advance the y value at which the row is drawn
             # by the length of the tile
             first_tile_white = not i%2
@@ -95,8 +96,8 @@ class View(tk.Frame):
                 if piece == EMPTY_SQUARE:
                     continue  # skip empty tiles
                 tile = self.images[piece]
-                x = j*TILE_WIDTH
-                y = i*TILE_WIDTH
+                x = j*TILE_WIDTH # pylint: disable=C0103
+                y = i*TILE_WIDTH # pylint: disable=C0103
                 self.canvas.create_image(x, y, anchor=tk.NW, image=tile)
 
     def display(self, board, debug_board=False):
@@ -134,14 +135,15 @@ class IsometricView(tk.Frame):
         ''' preload images from internet (depricated) '''
         self.images = {}
         for image_file_name in ISOMETRIC_TILES:
-            f = os.path.join(ISOMETRIC_DATA_DIR, ISOMETRIC_TILES[image_file_name])
+            f = os.path.join(ISOMETRIC_DATA_DIR, ISOMETRIC_TILES[image_file_name]) # pylint: disable=C0103
             if not os.path.exists(f):
-                print("Error: Cannot find image file: %s at %s - aborting"%(ISOMETRIC_TILES[image_file_name], f))
+                print("Error: Cannot find image file: %s at %s - aborting"%(ISOMETRIC_TILES[image_file_name], f)) # pylint: disable=C0301
                 exit(-1)
             self.images[image_file_name] = PhotoImage(file=f)
         tallest = 0
-        for k, im in self.images.items():
-            h = im.height()
+        # pylint: disable=C0103
+        for k, im in self.images.items(): # pylint: disable=W0612
+            h = im.height()# pylint: disable=C0103
             if h > tallest:
                 tallest = h
 
@@ -159,7 +161,7 @@ class IsometricView(tk.Frame):
 
         for j in range(8): # rows, or y coordinates
             for i in range(8): # columns, or x coordinates
-                x, y = self.get_tile_sw(i, j)
+                x, y = self.get_tile_sw(i, j) # pylint: disable=C0103
                 drawing_order = j*8 + i
                 tile_white = (j+i)%2
                 if tile_white == 0:
@@ -170,7 +172,7 @@ class IsometricView(tk.Frame):
 
                 if debug_board:  # implicitly this means if debug_board == True.
                     ''' If we are drawing a debug board, draw an arrow showing top left
-                    and its coordinates. '''
+                    and its coordinates. ''' # pylint: disable=W0105
                     current_tile = drawing_order +1 # (start from 1)
 
                     text_pos = (x+ISOMETRIC_TILE_WIDTH/2, y-ISOMETRIC_TILE_HEIGHT/2)
@@ -180,13 +182,14 @@ class IsometricView(tk.Frame):
                     self.canvas.create_text(text_pos, text=text_content)
 
     def get_tile_sw(self, i, j):
-        ''' given a row and column location for a piece return the x,y coordinates of the bottom left hand corner of
+        ''' given a row and column location for a piece return the x,y coordinates
+        of the bottom left hand corner of
         the tile '''
 
         y_start = (j*ISOMETRIC_TILE_HEIGHT/2)+self.board_y_offset
         x_start = (7-j)*ISOMETRIC_TILE_WIDTH/2
-        x = x_start+(i*ISOMETRIC_TILE_WIDTH/2)
-        y = y_start +(i*ISOMETRIC_TILE_HEIGHT/2)
+        x = x_start+(i*ISOMETRIC_TILE_WIDTH/2) # pylint: disable=C0103
+        y = y_start +(i*ISOMETRIC_TILE_HEIGHT/2) # pylint: disable=C0103
 
         return (x, y)
 
@@ -197,14 +200,14 @@ class IsometricView(tk.Frame):
             # for each row which we can use to calculate y
             # because rows run down the screen, they correspond to the y axis
             # and the columns correspond to the x axis
-            # isometric pieces need to be drawn by reference to a bottom corner of the tile,  We are using
-            # SW  (ie bottom left).
+            # isometric pieces need to be drawn by reference to a bottom corner of the tile,
+            #  We are using SW (ie bottom left).
 
             for i, piece in enumerate(row): # columns = x axis
                 if piece == EMPTY_SQUARE:
                     continue  # skip empty tiles
                 tile = self.images[piece]
-                x, y = self.get_tile_sw(i, j)
+                x, y = self.get_tile_sw(i, j) # pylint: disable=C0103
                 self.canvas.create_image(x, y, anchor=tk.SW, image=tile)
 
     def display(self, board, debug_board=False):

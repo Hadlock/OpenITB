@@ -1,6 +1,7 @@
 #/usr/bin/python3
 ''' first attempt at handling maps'''
 # pylint: disable=C0103
+# pylint: disable=W0105
 
 '''
 G = grass
@@ -13,7 +14,7 @@ I = monster ingress
 P = power generator
 L = landmine
 R = rocket
-''' # pylint: disable=W0105
+'''
 
 forgotten_hills = '''G S S S S G G T
 G G G G G G F T
