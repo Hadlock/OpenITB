@@ -97,7 +97,7 @@ class IsometricView(tk.Frame):
                 if piece == EMPTY_SQUARE:
                     continue  # skip empty tiles
                 tile = self.images[piece]
-                x, y = self.get_tile_sw(i, j) # pylint: disable=C0103
+                x, y = self.get_tile_sw(j, i) # pylint: disable=C0103
                 self.canvas.create_image(x, y, anchor=tk.SW, image=tile)
 
     def display(self, board, debug_board=False):
