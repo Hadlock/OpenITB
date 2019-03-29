@@ -77,7 +77,7 @@ class Controller(object):
         i, j = self.xy_to_ij(event.x, event.y)
         print("event x: " + str(event.x) + " y: " + str(event.y))
         print("and i: " + str(i) + " j: " + str(j))
-        self.click_list.append(BoardLocation(7-i, j))  # 7-i because the Model stores the board in
+        self.click_list.append(BoardLocation(i, j))  # 7-i because the Model stores the board in
         # reverse row order. just maintain a list of all of the moves
         # this list shouldn't be used to replay a series of moves because that is something
         # which should be stored in the model - but it wouldn't be much trouble to
@@ -126,22 +126,16 @@ class Controller(object):
         print("y1: " + str(y))
         y = y - 4*ISOMETRIC_TILE_HEIGHT # Get y relative to the height of the corner
         print("y2: " + str(y))
+        print("x: " + str(x) )
         a = (x-2*y)/120.0 # this calculates the 'X' in the model from gui # pylint: disable=C0103
         print("a: " + str(a))
         b = (y+30*a)/30.0 # this calculates the 'Y' in the model from gui # pylint: disable=C0103
         print("b: " + str(b))
 
-
-        y = self.view.canvas_height-y # invert it
-        y = y - 4*ISOMETRIC_TILE_HEIGHT # Get y relative to the height of the corner
-        a = (x-2*y)/120.0 # this calculates the 'X' in the model from gui # pylint: disable=C0103
-        b = (y+30*a)/30.0 # this calculates the 'Y' in the model from gui # pylint: disable=C0103
-
-
         # if either of these is <0 this means that the click is off the board (to the left or below)
         # if the number is greater than -1, but less than 0, int() will round it up to 0
         # so we need to explicitly return -1 rather than just int(a) etc.
-        return (int(b) if b >= 0 else -1, int(a) if a >= 0 else -1)
+        return (int(a) if a >= 0 else -1, int(b) if b >= 0 else -1)
 
     def update_display(self, debug_board=False):
         ''' updates the display '''
