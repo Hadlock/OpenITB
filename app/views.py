@@ -60,7 +60,7 @@ class IsometricView(tk.Frame):
                     tile = self.images['white_tile']
                 self.canvas.create_image(x, y, anchor=tk.SW, image=tile)
 
-                debug_board = True
+                # debug_board = True
                 if debug_board:  # implicitly this means if debug_board == True.
                     ''' If we are drawing a debug board, draw an arrow showing top left
                     and its coordinates. ''' # pylint: disable=W0105
