@@ -1,10 +1,24 @@
 #/bin/python3
 ''' controller for openitb'''
+import logging
 import tkinter as tk
 from .models import Model
 from .models import BoardLocation
 from .views import IsometricView
 from .constants import COLUMN_REFERENCE, TILE_WIDTH, ISOMETRIC_TILE_HEIGHT
+
+SELECT_PIECE, MOVE_PIECE, WAIT_COMPUTER = range(3)
+
+ALGEBRAIC_DATA=zip([0,1,2,3,4,5,6,7],[c for c in "hgfedcba"])
+ALGEBRAIC_DICT = {}
+for k,v in ALGEBRAIC_DATA:
+    ALGEBRAIC_DICT[k] = v
+
+logging.debug(ALGEBRAIC_DATA)
+logging.debug(ALGEBRAIC_DICT)
+
+def location_to_algebraic(board_location):
+    return "%s%s"%(ALGEBRAIC_DICT[7-board_location.j],8-board_location.i)
 
 class Controller(object):
     ''' primary controller '''
