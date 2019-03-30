@@ -5,11 +5,14 @@ COLUMN_REFERENCE = "a b c d e f g h".split(" ")
 EMPTY_SQUARE = " "
 
 TILE_WIDTH = 60
-ISOMETRIC_TILE_WIDTH = 120
-ISOMETRIC_TILE_HEIGHT = 60
 
 ISOMETRIC_TILE_WIDTH = 120
 ISOMETRIC_TILE_HEIGHT = 60
+
+#ISOMETRIC_TILE_WIDTH = 58
+#ISOMETRIC_TILE_HEIGHT = 42
+
+
 # to display these tiles many locations in the code rely on integer division by 2,
 # so this width and height should both be even numbers (otherwise rounding errors will accumulate)
 
@@ -30,7 +33,8 @@ ISOMETRIC_TILES = {"black_tile":"chess_isometric_black_tile.gif",
                    "n":"chess_n45.gif",
                    "N":"chess_n451.gif",
                    "p":"chess_p45.gif",
-                   "P":"chess_p451.gif",
+                   # "P":"chess_p451.gif",
+                   "P":"chess_isometric_white_pawn2.gif",
                    "q":"chess_q45.gif",
                    "Q":"chess_q451.gif",
                    "r":"chess_r45.gif",

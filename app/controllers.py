@@ -5,7 +5,7 @@ import tkinter as tk
 from .models import Model
 from .models import BoardLocation
 from .views import IsometricView
-from .constants import COLUMN_REFERENCE, TILE_WIDTH, ISOMETRIC_TILE_HEIGHT
+from .constants import COLUMN_REFERENCE, TILE_WIDTH, ISOMETRIC_TILE_HEIGHT, ISOMETRIC_TILE_WIDTH
 
 SELECT_PIECE, MOVE_PIECE, WAIT_COMPUTER = range(3)
 
@@ -91,7 +91,10 @@ class Controller(object):
         # i, j represent the X-Y coordinates on the board in chess notation, assuming a 0 index
         i, j = self.xy_to_ij(event.x, event.y)
         print("event x: " + str(event.x) + " y: " + str(event.y))
-        print("and i: " + str(i) + " j: " + str(j))
+
+        # this actually displays the location on the board:
+        print("and i: " + str((7-i)+1) + " j: " + str(j))
+
         self.click_list.append(BoardLocation(i, j))  # 7-i because the Model stores the board in
         # reverse row order. just maintain a list of all of the moves
         # this list shouldn't be used to replay a series of moves because that is something
@@ -136,7 +139,6 @@ class Controller(object):
         so first translate the x,y coordinates we have received
         x stays the same
         '''
-
         y = self.view.canvas_height-y # invert it
         print("y1: " + str(y))
         y = y - 4*ISOMETRIC_TILE_HEIGHT # Get y relative to the height of the corner
