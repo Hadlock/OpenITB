@@ -156,7 +156,7 @@ class Controller(object):
 
     def update_display(self, debug_board=False):
         ''' updates the display '''
-        self.view.display(self.model.board, debug_board=debug_board)
+        self.view.display(self.model.board, self.model.tilemap, debug_board=debug_board)
         # self.view2.display(self.model.board, debug_board= debug_board)
 
     def parse_move(self, move):

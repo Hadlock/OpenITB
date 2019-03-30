@@ -83,6 +83,14 @@ class IsometricView(tk.Frame):
 
         return (x, y)
 
+    def draw_map_board(self, tilemap):
+        '''draws map tiles over the board'''
+        for j, row in enumerate(tilemap):
+            for i, piece in enumerate(reversed(row)):
+                tile = self.images[piece]
+                x, y = self.get_tile_sw(j, i) # pylint: disable=C0103
+                self.canvas.create_image(x, y, anchor=tk.SW, image=tile)
+
     def draw_pieces(self, board):
         ''' draws the pieces on the board '''
         for j, row in enumerate(board):  # this is the rows = y axis
@@ -94,17 +102,18 @@ class IsometricView(tk.Frame):
             #  We are using SW (ie bottom left).
             for i, piece in enumerate(reversed(row)): # columns = x axis
                 if piece == EMPTY_SQUARE:
-                    continue  # skip empty tiles
+                    continue  # skip empty tilesdraw_pieces
                 tile = self.images[piece]
                 x, y = self.get_tile_sw(j, i) # pylint: disable=C0103
                 self.canvas.create_image(x, y, anchor=tk.SW, image=tile)
 
-    def display(self, board, debug_board=False):
+    def display(self, board, tilemap, debug_board=False):
         ''' draw an empty board then draw each of the
         pieces in the board over the top'''
 
         self.clear_canvas()
         self.draw_empty_board(debug_board=debug_board)
+        self.draw_map_board(tilemap)
         if not debug_board:
             self.draw_pieces(board)
 
@@ -113,11 +122,6 @@ class IsometricView(tk.Frame):
         for i, row in enumerate(board):
             row_marker = 8-i
             print("%s: %s"%(row_marker, row))
-
-        # first draw the empty board
-        # then draw the pieces
-        # if the order was reversed, the board would be drawn over the pieces
-        # so we couldn't see them
 
     def display_debug_board(self):
         ''' draws debug board '''

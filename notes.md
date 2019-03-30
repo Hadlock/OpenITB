@@ -93,7 +93,7 @@ M G G M I G M M
 
 * Secondary Archives
 M M G S S G M M
-M G G G T G S S 
+M G G G T G S S
 G G P G G G G D
 G T D G G R G G
 G G G G G W W G
@@ -108,5 +108,5 @@ G G G G G P M G
 T D W G G G G G
 G W W G G D G G
 G D I G G W W G
-T G G G G G G G 
+T G G G G G G G
 G G G M I G G G

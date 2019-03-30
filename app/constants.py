@@ -2,7 +2,7 @@
 '''this holds all global constants'''
 
 COLUMN_REFERENCE = "a b c d e f g h".split(" ")
-EMPTY_SQUARE = " "
+EMPTY_SQUARE = "."
 
 TILE_WIDTH = 60
 
@@ -25,9 +25,9 @@ ISOMETRIC_BOARD_HEIGHT = 8*ISOMETRIC_TILE_HEIGHT
 DATA_DIR = "chess_data"
 ISOMETRIC_DATA_DIR = "chess_data"
 
-ISOMETRIC_TILES = {# "black_tile":"chess_isometric_black_tile.gif",
-                   "black_tile":"water.png",
-                   "white_tile":"mountain.png",
+ISOMETRIC_TILES = {"black_tile":"black_tile.gif",
+                   "white_tile":"black_tile.gif",
+                   # "black_tile":"chess_isometric_black_tile.gif",
                    "B":"chess_b451.gif",
                    "b":"chess_b45.gif",
                    "k":"chess_k45.gif",
@@ -43,6 +43,14 @@ ISOMETRIC_TILES = {# "black_tile":"chess_isometric_black_tile.gif",
                    "r":"chess_r45.gif",
                    "R":"chess_r451.gif",
                    # "white_tile":"chess_isometric_white_tile.gif"
+                   "G":"ground.gif",
+                   "S":"double.png",
+                   "D":"double.png",
+                   "T":"trees.png",
+                   "M":"mountain.png",
+                   "W":"water.png",
+                   "I":"ground.gif",
+                   "H":"leaper.png"
                    }
 
 TILES = {"black_tile":"black_tile.gif",

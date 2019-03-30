@@ -12,7 +12,33 @@ class Model(object):
         self.board is a list of 8 character arrays
         '''
 
+        # Generate a game map to be displayed
+        self.tilemap = []
+        selectedmap = '''G S S S S G G T
+G G G G G G T T
+M G G G G G D D
+M T G G W G D M
+T G G G G G G M
+T G W G I T G M
+G G G G W G G M
+G T G G G I G T'''
+        for line in selectedmap.splitlines():
+            self.tilemap.append(line.split(" "))
+        #print(self.tilemap)
+
         self.board = []
+        for i in range(3):
+            self.board.append([EMPTY_SQUARE]*8)
+        start = ". . P P . P . ."
+        self.board.append(start.split(" "))
+        self.board.append([EMPTY_SQUARE]*8)
+        firstlinee = ". . . . H . . ."
+        self.board.append(firstlinee.split(" "))
+        self.board.append([EMPTY_SQUARE]*8)
+        secondlinee = ". . . . . H . ."
+        self.board.append(secondlinee.split(" "))
+
+        '''
         pawn_base = "P "*8
         white_pieces = "R N B Q K B N R"
         white_pawns = pawn_base.strip()
@@ -24,7 +50,7 @@ class Model(object):
             self.board.append([EMPTY_SQUARE]*8)
         self.board.append(white_pawns.split(" "))
         self.board.append(white_pieces.split(" "))
-
+        '''
 
     def move(self, start, destination):
         ''' move a piece located at the start location to destination
