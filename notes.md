@@ -1,3 +1,7 @@
+https://www.chessprogramming.org/Chess_Engine_Communication_Protocol
+
+tiles: https://intothebreach.gamepedia.com/Tiles
+mechs: https://intothebreach.gamepedia.com/Mechs
 units:
 * mech
  * three health
