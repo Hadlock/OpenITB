@@ -1,4 +1,4 @@
-![openitb logo](https://github.com/hadlock/openitb/blob/master/static/openitb-logo.png)
+![openitb logo](https://github.com/hadlock/openitb/blob/master/static/openitb-logo-sm.png)
 
 # OpenITB
 Open source turn based strategy game based on Into The Breach
