@@ -1,9 +1,9 @@
+![openitb logo](https://github.com/hadlock/openitb/blob/master/static/openitb-logo.png)
+
 # OpenITB
 Open source turn based strategy game based on Into The Breach
 
-Chess engine strongly based off of sunfish chess engine. GUI supports traditional three-quarter overhead view with layered tiles and mouse click using tkinter gui.
-
-![openitb logo](https://github.com/hadlock/openitb/blob/master/static/openitb-logo.png)
+Mantafish strongly based off of sunfish chess engine. GUI supports traditional three-quarter overhead view with layered tiles and mouse click using tkinter gui.
 
 Screenshot:
 
