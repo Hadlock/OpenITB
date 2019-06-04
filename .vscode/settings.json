@@ -1,6 +1,0 @@
-{
-    "python.linting.pylintEnabled": true,
-    "python.linting.pylintPath": "/home/pi/.local/bin/pylint",
-    "python.linting.pylintUseMinimalCheckers": false,
-    "python.pythonPath": "python3.7"
-}
