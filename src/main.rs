@@ -109,18 +109,13 @@ impl View {
         View
     }
 
-    fn display(&self, board: &[[char; 8]; 8]) {
-        let now = Local::now();
-        println!("\n{}", now.format("%m/%d/%y %H:%M:%S"));
-        println!(" : {:?}", COLUMN_REFERENCE);
-        println!("{}", "-".repeat(50));
-        for (i, row) in board.iter().enumerate() {
-            let row_marker = 8 - i;
-            println!("{}: {:?}", row_marker, row);
+    fn display(&self, board: &[[char; 8]; 8], debug_board: bool) {
+        // Draw the empty board
+        self.draw_empty_board(debug_board);
+        // Draw the pieces on top of the board
+        if !debug_board {
+            self.draw_pieces(board);
         }
-
-        // Draw the chessboard
-        self.draw_empty_board(false);
     }
 
     fn draw_row(&self, y: f32, first_tile_white: bool, debug_board: bool) {
@@ -149,6 +144,22 @@ impl View {
             let y = i as f32 * TILE_WIDTH as f32;
             let first_tile_white = !(i % 2 == 0);
             self.draw_row(y, first_tile_white, debug_board);
+        }
+    }
+
+    fn draw_pieces(&self, board: &[[char; 8]; 8]) {
+        let tiles = TILES.lock().unwrap();
+        for (i, row) in board.iter().enumerate() {
+            for (j, &piece) in row.iter().enumerate() {
+                if piece != EMPTY_SQUARE {
+                    let x = j as f32 * TILE_WIDTH as f32;
+                    let y = i as f32 * TILE_WIDTH as f32;
+                    let piece_str = piece.to_string();
+                    if let Some(texture) = tiles.get(piece_str.as_str()) {
+                        draw_texture(texture, x, y, WHITE);
+                    }
+                }
+            }
         }
     }
 
@@ -230,13 +241,32 @@ async fn main() {
     // Load textures asynchronously
     let black_tile = load_texture(&format!("{}/black_tile.png", DATA_DIR)).await.unwrap();
     let white_tile = load_texture(&format!("{}/white_tile.png", DATA_DIR)).await.unwrap();
+    let mut tiles = TILES.lock().unwrap();
+    tiles.insert("black_tile", black_tile);
+    tiles.insert("white_tile", white_tile);
 
-    // Store textures in the global TILES HashMap
-    {
-        let mut tiles = TILES.lock().unwrap();
-        tiles.insert("black_tile", black_tile);
-        tiles.insert("white_tile", white_tile);
+    // Load piece textures
+    let piece_names = [
+        ("B", "chess_b451.png"),
+        ("b", "chess_b45.png"),
+        ("k", "chess_k45.png"),
+        ("K", "chess_k451.png"),
+        ("n", "chess_n45.png"),
+        ("N", "chess_n451.png"),
+        ("p", "chess_p45.png"),
+        ("P", "chess_p451.png"),
+        ("q", "chess_q45.png"),
+        ("Q", "chess_q451.png"),
+        ("r", "chess_r45.png"),
+        ("R", "chess_r451.png"),
+    ];
+
+    for (name, file) in &piece_names {
+        let texture = load_texture(&format!("{}/{}", DATA_DIR, file)).await.unwrap();
+        tiles.insert(name, texture);
     }
+
+    drop(tiles); // Release the lock
 
     let mut controller = Controller::new();
     let mut input_buffer = String::new();
@@ -244,14 +274,8 @@ async fn main() {
     loop {
         clear_background(WHITE);
 
-        // Draw the chessboard
-        controller.view.draw_empty_board(false);
-
-        // Display the board only if it has been updated
-        if controller.model.updated {
-            controller.view.display(controller.model.get_board());
-            controller.model.reset_update_flag();
-        }
+        // Display the board and pieces
+        controller.view.display(controller.model.get_board(), false);
 
         // Draw move history
         controller.view.draw_move_history(&controller.model.move_history);
@@ -274,7 +298,7 @@ async fn handle_macroquad_input(controller: &mut Controller, input_buffer: &mut 
 
 fn handle_console_input(controller: &mut Controller) {
     loop {
-        controller.view.display(controller.model.get_board());
+        controller.view.display(controller.model.get_board(), false);
         print!("move (eg e2-e4): ");
         io::stdout().flush().unwrap();
 
