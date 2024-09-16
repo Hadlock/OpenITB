@@ -4,6 +4,8 @@ use macroquad::prelude::*;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::io::{self, Write};
+use std::sync::mpsc::{self, TryRecvError};
+use std::thread;
 
 const COLUMN_REFERENCE: [&str; 8] = ["a", "b", "c", "d", "e", "f", "g", "h"];
 const EMPTY_SQUARE: char = ' ';
@@ -115,6 +117,17 @@ impl View {
         // Draw the pieces on top of the board
         if !debug_board {
             self.draw_pieces(board);
+        }
+    }
+
+    fn print_board(&self, board: &[[char; 8]; 8]) {
+        let now = Local::now();
+        println!("\n{}", now.format("%m/%d/%y %H:%M:%S"));
+        println!(" : {:?}", COLUMN_REFERENCE);
+        println!("{}", "-".repeat(50));
+        for (i, row) in board.iter().enumerate() {
+            let row_marker = 8 - i;
+            println!("{}: {:?}", row_marker, row);
         }
     }
 
@@ -271,6 +284,18 @@ async fn main() {
     let mut controller = Controller::new();
     let mut input_buffer = String::new();
 
+    // Set up a channel for console input
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        loop {
+            let mut input = String::new();
+            print!("move (eg e2-e4): ");
+            io::stdout().flush().unwrap();
+            io::stdin().read_line(&mut input).unwrap();
+            tx.send(input.trim().to_string()).unwrap();
+        }
+    });
+
     loop {
         clear_background(WHITE);
 
@@ -283,6 +308,24 @@ async fn main() {
         // Handle macroquad window input
         handle_macroquad_input(&mut controller, &mut input_buffer).await;
 
+        // Handle console input
+        match rx.try_recv() {
+            Ok(input) => {
+                if input == "q" {
+                    break;
+                }
+                controller.handle_input(&input);
+            }
+            Err(TryRecvError::Empty) => {}
+            Err(TryRecvError::Disconnected) => break,
+        }
+
+        // Print to console only if the model has been updated
+        if controller.model.updated {
+            controller.view.print_board(controller.model.get_board());
+            controller.model.reset_update_flag();
+        }
+
         next_frame().await;
     }
 }
@@ -293,26 +336,5 @@ async fn handle_macroquad_input(controller: &mut Controller, input_buffer: &mut 
         input_buffer.clear();
     } else if let Some(c) = get_char_pressed() {
         input_buffer.push(c);
-    }
-}
-
-fn handle_console_input(controller: &mut Controller) {
-    loop {
-        controller.view.display(controller.model.get_board(), false);
-        print!("move (eg e2-e4): ");
-        io::stdout().flush().unwrap();
-
-        let mut move_input = String::new();
-        io::stdin().read_line(&mut move_input).unwrap();
-        let move_input = move_input.trim().to_lowercase();
-
-        if move_input == "q" {
-            break;
-        }
-        if move_input.is_empty() {
-            continue;
-        }
-
-        controller.handle_input(&move_input);
     }
 }
