@@ -2,6 +2,7 @@ use chrono::Local;
 use lazy_static::lazy_static;
 use macroquad::prelude::*;
 use std::collections::HashMap;
+use std::sync::Mutex;
 use std::io::{self, Write};
 
 const COLUMN_REFERENCE: [&str; 8] = ["a", "b", "c", "d", "e", "f", "g", "h"];
@@ -9,29 +10,12 @@ const EMPTY_SQUARE: char = ' ';
 const TILE_WIDTH: usize = 60;
 const BOARD_WIDTH: usize = 8 * TILE_WIDTH;
 const BOARD_HEIGHT: usize = BOARD_WIDTH;
-const DATA_DIR: &str = "chess_data";
+const DATA_DIR: &str = "src/chess_data";
 
 pub static FSBLUE: Color = Color::new(0.10, 0.20, 0.30, 1.00);
 
 lazy_static! {
-    static ref TILES: HashMap<&'static str, &'static str> = {
-        let mut m = HashMap::new();
-        m.insert("black_tile", "black_tile.gif");
-        m.insert("B", "chess_b451.gif");
-        m.insert("b", "chess_b45.gif");
-        m.insert("k", "chess_k45.gif");
-        m.insert("K", "chess_k451.gif");
-        m.insert("n", "chess_n45.gif");
-        m.insert("N", "chess_n451.gif");
-        m.insert("p", "chess_p45.gif");
-        m.insert("P", "chess_p451.gif");
-        m.insert("q", "chess_q45.gif");
-        m.insert("Q", "chess_q451.gif");
-        m.insert("r", "chess_r45.gif");
-        m.insert("R", "chess_r451.gif");
-        m.insert("white_tile", "white_tile.gif");
-        m
-    };
+    static ref TILES: Mutex<HashMap<&'static str, Texture2D>> = Mutex::new(HashMap::new());
 }
 
 struct Position {
@@ -134,6 +118,38 @@ impl View {
             let row_marker = 8 - i;
             println!("{}: {:?}", row_marker, row);
         }
+
+        // Draw the chessboard
+        self.draw_empty_board(false);
+    }
+
+    fn draw_row(&self, y: f32, first_tile_white: bool, debug_board: bool) {
+        let remainder = if first_tile_white { 1 } else { 0 };
+        let tiles = TILES.lock().unwrap();
+        for i in 0..8 {
+            let x = i as f32 * TILE_WIDTH as f32;
+            let tile = if i % 2 == remainder {
+                tiles.get("black_tile").unwrap()
+            } else {
+                tiles.get("white_tile").unwrap()
+            };
+            draw_texture(tile, x, y, WHITE);
+
+            if debug_board {
+                let text_pos = (x + TILE_WIDTH as f32 / 2.0, y + TILE_WIDTH as f32 / 2.0);
+                let line_end = (x + TILE_WIDTH as f32 / 4.0, y + TILE_WIDTH as f32 / 4.0);
+                draw_line(x, y, line_end.0, line_end.1, 2.0, RED);
+                draw_text(&format!("({}, {})", x, y), text_pos.0, text_pos.1, 20.0, RED);
+            }
+        }
+    }
+
+    fn draw_empty_board(&self, debug_board: bool) {
+        for i in 0..8 {
+            let y = i as f32 * TILE_WIDTH as f32;
+            let first_tile_white = !(i % 2 == 0);
+            self.draw_row(y, first_tile_white, debug_board);
+        }
     }
 
     fn draw_move_history(&self, move_history: &[String]) {
@@ -211,11 +227,25 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
+    // Load textures asynchronously
+    let black_tile = load_texture(&format!("{}/black_tile.png", DATA_DIR)).await.unwrap();
+    let white_tile = load_texture(&format!("{}/white_tile.png", DATA_DIR)).await.unwrap();
+
+    // Store textures in the global TILES HashMap
+    {
+        let mut tiles = TILES.lock().unwrap();
+        tiles.insert("black_tile", black_tile);
+        tiles.insert("white_tile", white_tile);
+    }
+
     let mut controller = Controller::new();
     let mut input_buffer = String::new();
 
     loop {
         clear_background(WHITE);
+
+        // Draw the chessboard
+        controller.view.draw_empty_board(false);
 
         // Display the board only if it has been updated
         if controller.model.updated {
