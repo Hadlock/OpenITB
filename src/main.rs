@@ -129,6 +129,9 @@ impl View {
             let row_marker = 8 - i;
             println!("{}: {:?}", row_marker, row);
         }
+        // Print the input prompt at the bottom
+        print!("move (eg e2-e4): ");
+        io::stdout().flush().unwrap();
     }
 
     fn draw_row(&self, y: f32, first_tile_white: bool, debug_board: bool) {
@@ -176,22 +179,32 @@ impl View {
         }
     }
 
-    fn draw_move_history(&self, move_history: &[String]) {
+    fn draw_move_history(&self, move_history: &[String], input_prompt: &str) {
         for (i, record) in move_history.iter().enumerate() {
             draw_text(
                 record,
                 10.0,
-                (screen_height() - 10.0 - ((move_history.len() - 1 - i) as f32 * 20.0)),
+                (screen_height() - 30.0 - ((move_history.len() - 1 - i) as f32 * 20.0)),
                 20.0,
                 FSBLUE,
             );
         }
+        // Draw the input prompt at the bottom
+        draw_text(
+            input_prompt,
+            10.0,
+            screen_height() - 10.0,
+            20.0,
+            FSBLUE,
+        );
     }
 }
+
 
 struct Controller {
     model: Model,
     view: View,
+    click_list: Vec<Position>,
 }
 
 impl Controller {
@@ -199,6 +212,7 @@ impl Controller {
         Controller {
             model: Model::new(),
             view: View::new(),
+            click_list: Vec::new(),
         }
     }
 
@@ -215,28 +229,38 @@ impl Controller {
 
         let (s, d) = (parts[0], parts[1]);
 
-        let start_i = match s[1..2].parse::<usize>() {
-            Ok(i) => 8 - i,
-            Err(_) => return (Position::new(0, 0), Position::new(0, 0)), // Invalid row
-        };
-        let start_j = match COLUMN_REFERENCE.iter().position(|&r| r == &s[0..1]) {
-            Some(j) => j,
-            None => return (Position::new(0, 0), Position::new(0, 0)), // Invalid column
-        };
+        let start_i = 8 - s[1..2].parse::<usize>().unwrap();
+        let start_j = COLUMN_REFERENCE.iter().position(|&r| r == &s[0..1]).unwrap();
 
-        let dest_i = match d[1..2].parse::<usize>() {
-            Ok(i) => 8 - i,
-            Err(_) => return (Position::new(0, 0), Position::new(0, 0)), // Invalid row
-        };
-        let dest_j = match COLUMN_REFERENCE.iter().position(|&r| r == &d[0..1]) {
-            Some(j) => j,
-            None => return (Position::new(0, 0), Position::new(0, 0)), // Invalid column
-        };
+        let dest_i = 8 - d[1..2].parse::<usize>().unwrap();
+        let dest_j = COLUMN_REFERENCE.iter().position(|&r| r == &d[0..1]).unwrap();
 
         (
             Position::new(start_i, start_j),
             Position::new(dest_i, dest_j),
         )
+    }
+
+    fn handle_click(&mut self, x: f32, y: f32) {
+        let row = (y / TILE_WIDTH as f32).floor() as usize;
+        let col = (x / TILE_WIDTH as f32).floor() as usize;
+
+        if row < 8 && col < 8 {
+            let position = Position::new(row, col);
+            self.click_list.push(position);
+
+            if self.click_list.len() % 2 == 0 {
+                let start = &self.click_list[self.click_list.len() - 2];
+                let destination = &self.click_list[self.click_list.len() - 1];
+                let move_str = format!(
+                    "{}{}-{}{}",
+                    COLUMN_REFERENCE[start.j], 8 - start.i,
+                    COLUMN_REFERENCE[destination.j], 8 - destination.i
+                );
+                self.handle_input(&move_str);
+                self.click_list.clear();
+            }
+        }
     }
 }
 
@@ -289,8 +313,6 @@ async fn main() {
     thread::spawn(move || {
         loop {
             let mut input = String::new();
-            print!("move (eg e2-e4): ");
-            io::stdout().flush().unwrap();
             io::stdin().read_line(&mut input).unwrap();
             tx.send(input.trim().to_string()).unwrap();
         }
@@ -302,11 +324,17 @@ async fn main() {
         // Display the board and pieces
         controller.view.display(controller.model.get_board(), false);
 
-        // Draw move history
-        controller.view.draw_move_history(&controller.model.move_history);
+        // Draw move history and input prompt
+        controller.view.draw_move_history(&controller.model.move_history, "move (eg e2-e4): ");
 
         // Handle macroquad window input
         handle_macroquad_input(&mut controller, &mut input_buffer).await;
+
+        // Handle mouse input
+        if is_mouse_button_pressed(MouseButton::Left) {
+            let (mouse_x, mouse_y) = mouse_position();
+            controller.handle_click(mouse_x, mouse_y);
+        }
 
         // Handle console input
         match rx.try_recv() {
