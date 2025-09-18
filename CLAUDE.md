@@ -1,56 +1,173 @@
-Ok let's create a sort of clone of into the breach
+# OpenITB - Into the Breach Clone
 
-'''
-G = grass
-S = single building
-D = double building
-F = forest
-M = mountain
-W = water
-I = monster ingress
-P = power generator
-L = landmine
-R = rocket
-'''
+## Project Overview
 
-Test map = '''G S S S S G G T
-G G G G G G T T
-M G G G G G D D
-M T G G W G D M
-T G G G G G G M
-T G W G I T G M
-G G G G W G G M
-G T G G G I G T'''
+This is a Rust-based clone of Into the Breach, implementing a turn-based tactical game with isometric graphics. The project follows chess engine architecture patterns for familiarity among chess programmers.
 
-ISOMETRIC_TILES = {"black_tile":"black_tile.gif",
-                   "white_tile":"black_tile.gif",
-                   "P":"mech.png",
-                   "G":"ground.gif",
-                   "S":"double.png",
-                   "D":"double.png",
-                   "T":"trees.png",
-                   "M":"mountain.png",
-                   "W":"water.png",
-                   "I":"ground.gif",
-                   "H":"leaper.png"
-                     }
+## Architecture
 
-isometric tiles can be found in assets/tiles. they should be diamond shaped, 120x60 px on a transparent rectangular background
+The game is split into three main components:
 
-the game is split in to three parts:
+### 1. Engine Module (`openitb-engine/`)
+- **Location**: `openitb-engine/src/`
+- **Purpose**: Core game logic and move validation
+- **Protocol**: UCI-like interface for communication with GUI/TUI
+- **Key Files**:
+  - `board.rs`: 8x8 board with chess notation (a1-h8), Position struct, Move struct
+  - `game.rs`: Game state management, turn logic, piece movement
+  - `lib.rs`: Public API and engine interface
 
-1. an 8x8 regular grid, using ratatui TUI crate drawn in the CLI, with multiple layers (terrain (e.g. "Test map"), terrain effects (poision gas clouds, radiation, etc), pieces, legal move overlay, cursor overlay, etc ), player/npc/enemy layer, visual effect layer etc etc.. this might be a multi dimensional array? not sure how best to structure it, but I want to be able to toggle different layers on and off for debug etc. this is the main logic
+### 2. GUI Module (`openitb-game/src/gui.rs`)
+- **Framework**: Macroquad 0.4
+- **Rendering**: Isometric tiles (120x60px) with transparency
+- **Key Features**:
+  - Mouse input handling with coordinate transformation
+  - Layered rendering (terrain → highlights → pieces → UI)
+  - Real-time legal move visualization
+- **Critical Implementation Notes**:
+  - **Coordinate System**: Uses chess notation internally (1-8 ranks, a-h files)
+  - **Screen-to-Board Transform**: Custom isometric math with 0.5 file offset correction
+  - **Tile Assets**: Located in `assets/tiles/`, diamond-shaped PNG files
 
-2. a visual representation of the grid, drawn using macroquad crate (latest version) using the isometric tiles, layered in roughly the order given above. when you click on a player/npc piece it should draw all the legal moves in a transparent layer (also represented in the cli tui grid in real time) this will have the main game loop, handle mouse/keyboard input, and eventually sound
+### 3. TUI Module (`openitb-game/src/tui.rs`)
+- **Framework**: Ratatui
+- **Purpose**: Debug interface with toggleable layers
+- **Features**: Multi-layer visualization, real-time game state display
 
-3. the cli tui part should communicate with the ENGINE which is going to be a seperate sub crate/module, it should communicate via something similar, or take heavy inspiration from the UCI universal chess interface protocol. testing for legal moves should be part of the engine
+## Chess-Specific Implementation Details
 
-as a simple MVP or POC it should contain all three of the above. inside of the macroquad window it should draw the map of isometric tiles, respecting alpha/transparency channel. the user should be able to click on a P/mech.png and it should highlight that "square" and then in another transparent color it should draw all the legal moves (gotten from the ENGINE). the mech can move up to three spaces. it can not move on top of mountains, tiles with mechs, or tiles with leapers. moving across trees or water reduces one move per tree or water tile.
+### Coordinate Systems
+- **Internal Representation**: 0-based indexing (file: 0-7, rank: 0-7)
+- **Chess Notation**: 1-based display (a1-h8) via `Position::to_chess_notation()`
+- **GUI Coordinate Transform**: 
+  ```rust
+  // Critical: File calculation needs 0.5 offset correction
+  let corrected_x = board_x - 0.5; // Fixes A8 → B8 offset bug
+  let file = corrected_x.round() as i32;
+  ```
 
-after all of the mechs have moved, then it is the computer's turn, it will move each of the H or leaper.png up to three spaces with the same move rules. when all three leapers are done moving, it goes back to the player's turn and wait for them to manipulate the mechs with the mouse. this logic should be implemented using state machines, with lots of comments explaining what each part is doing.
+### UCI-Like Protocol
+- Move format: `Position::from` → `Position::to` (e.g., "a1b2")
+- Engine communication via structured commands
+- State machine pattern for turn management
 
-The board is meant to loosely represent a chessboard, it is 8x8 and uses the same notation (internally) 12345678 abcdefgh so let's be cognizant of that. it also uses a UCI type interface with the engine when talking with the main game and ENGINE module. from that perspective programmers knowledgable about how chess programming works should immediatley understand the architecture.
+## Game Mechanics
 
-after enough progress has been made, commit your progress as you go
+### Pieces
+- **Mechs (Human)**: Blue-tinted, up to 3 move range
+- **Leapers (Computer)**: Red-tinted, up to 3 move range
 
-You may need to write early automation to simulate mouse click/drag and screenshot capability to review your progress.
+### Movement Rules
+- **Blocked Terrain**: Mountains, occupied tiles
+- **Movement Costs**: Trees and water reduce available moves by 1
+- **Range**: Maximum 3 tiles per turn
+
+### Turn Structure
+1. **Player Turn**: Select mech → highlight legal moves → click destination
+2. **Computer Turn**: AI automatically moves all leapers
+3. **Repeat**: State machine handles turn transitions
+
+## Technical Challenges Solved
+
+### Isometric Coordinate Transformation
+**Problem**: Mouse clicks were offset by one tile (clicking A8 → detected as B8)
+
+**Root Cause**: Mismatch between isometric math and chess coordinate expectations
+
+**Solution**: 
+```rust
+fn screen_to_board(&self, screen_pos: Vec2) -> Option<Position> {
+    // ... isometric inverse transformation ...
+    let corrected_x = board_x - 0.5; // Critical offset correction
+    let corrected_y = board_y - 0.0; // Y was already correct
+    let file = corrected_x.round() as i32;
+    let rank = corrected_y.round() as i32;
+}
+```
+
+### Coordinate Label Display
+**Implementation**: Labels drawn outside board boundaries for debugging
+- File letters (a-h): Above and below board edges
+- Rank numbers (1-8): Left and right of board edges
+- Toggle with 'C' key (when coordinate display is implemented)
+
+## Asset Management
+
+### Tile Requirements
+- **Size**: 120x60 pixels
+- **Format**: PNG with transparency
+- **Shape**: Diamond/rhombus for isometric view
+- **Location**: `assets/tiles/`
+
+### Key Assets
+- `ground.png`, `trees.png`, `mountain.png`, `water.png`: Terrain
+- `mech.png`, `leaper.png`: Game pieces  
+- `yellow_cursor.png`, `green_highlight.png`: UI overlays
+
+## Development Workflow
+
+### Building & Running
+```bash
+cargo build          # Compile project
+cargo run            # Start GUI mode
+cargo test           # Run unit tests
+```
+
+### Debug Features
+- **Console Output**: Detailed coordinate transformation logging
+- **TUI Mode**: Press Space to switch to debug view (when implemented)
+- **Coordinate Display**: Press 'C' to toggle coordinate labels
+
+## State Management
+
+### Game States
+```rust
+enum GameState {
+    PlayerTurn,     // Waiting for player input
+    ComputerTurn,   // AI processing moves
+    GameOver,       // End state
+}
+```
+
+### Turn Logic
+- **Player Phase**: Select piece → show legal moves → execute move
+- **Computer Phase**: Process all AI moves sequentially
+- **State Transitions**: Handled by GameManager
+
+## Future Development
+
+### Planned Features
+- [ ] Coordinate display toggle (C key)
+- [ ] Sound system integration
+- [ ] Animation system for moves
+- [ ] Advanced AI with difficulty levels
+- [ ] Campaign/scenario system
+
+### Code Structure Improvements
+- [ ] Reduce coordinate system warnings
+- [ ] Implement proper error handling
+- [ ] Add comprehensive test coverage
+- [ ] Performance optimization for large boards
+
+## Known Issues
+
+### Compiler Warnings (Non-Critical)
+- `TuiMode` variant never constructed
+- `scale` field never read
+- Some methods never used (future features)
+
+### Architecture Notes
+- Engine follows chess programming conventions
+- Clear separation between logic (engine) and presentation (GUI/TUI)
+- State machine pattern ensures clean turn management
+- Isometric rendering requires careful coordinate transformation
+
+## For New Contributors
+
+1. **Start with Engine**: Understand `Position`, `Move`, and `Board` structs
+2. **GUI Debugging**: Use coordinate display and console output
+3. **Coordinate Systems**: Remember 0-based internal vs 1-based display
+4. **Testing**: Click corner tiles (A1, H1, H8, A8) to verify coordinate accuracy
+5. **Chess Knowledge**: UCI protocol and chess engine patterns are used throughout
+
+This codebase is designed to be familiar to chess engine developers while implementing tactical turn-based gameplay mechanics.

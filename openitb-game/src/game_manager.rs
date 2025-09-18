@@ -12,8 +12,12 @@ pub struct GameManager {
     selected_piece: Option<Position>,
     /// Legal moves for currently selected piece
     legal_moves: Vec<Position>,
+    /// Current cursor position (last clicked tile) - useful for gamepad support
+    cursor_position: Option<Position>,
     /// Whether we're in TUI debug mode
     debug_mode: bool,
+    /// Whether to show coordinate labels on the board
+    show_coordinates: bool,
 }
 
 impl GameManager {
@@ -67,7 +71,9 @@ impl GameManager {
             game_state: GameState::PlayerTurn,
             selected_piece: None,
             legal_moves: Vec::new(),
+            cursor_position: None,
             debug_mode: false,
+            show_coordinates: false,
         }
     }
 
@@ -101,12 +107,30 @@ impl GameManager {
         self.debug_mode
     }
 
+    /// Toggle coordinate display on/off
+    pub fn toggle_coordinates(&mut self) {
+        self.show_coordinates = !self.show_coordinates;
+    }
+
+    /// Check if coordinate display is enabled
+    pub fn show_coordinates(&self) -> bool {
+        self.show_coordinates
+    }
+
+    /// Get current cursor position
+    pub fn get_cursor_position(&self) -> Option<Position> {
+        self.cursor_position
+    }
+
     /// Handle piece selection from UI
     /// Returns true if selection changed
     pub fn select_piece(&mut self, pos: Position) -> bool {
+        // Always update cursor position when clicking on any tile
+        self.cursor_position = Some(pos);
+        
         // Only allow selection during player's turn
         if self.game_state != GameState::PlayerTurn {
-            return false;
+            return true; // Cursor moved, return true to indicate state change
         }
 
         // Check if there's a piece at this position

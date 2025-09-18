@@ -15,6 +15,8 @@ pub struct IsometricRenderer {
     selected_piece: Option<Position>,
     /// Legal moves for selected piece
     legal_moves: Vec<Position>,
+    /// Current cursor position (last clicked tile)
+    cursor_position: Option<Position>,
     /// Scale factor for rendering
     scale: f32,
 }
@@ -96,6 +98,7 @@ impl IsometricRenderer {
             board_offset,
             selected_piece: None,
             legal_moves: Vec::new(),
+            cursor_position: None,
             scale,
         }
     }
@@ -117,29 +120,62 @@ impl IsometricRenderer {
         )
     }
 
-    /// Convert screen position to board coordinates
+    /// Convert screen position to board coordinates (inverse of board_to_screen)
     fn screen_to_board(&self, screen_pos: Vec2) -> Option<Position> {
-        // Inverse isometric transformation
+        println!("Raw screen click: ({:.1}, {:.1})", screen_pos.x, screen_pos.y);
+        
+        // Remove the same offsets that board_to_screen adds
         let relative_x = screen_pos.x - self.board_offset.x - self.tile_width * 4.0;
         let relative_y = screen_pos.y - self.board_offset.y - self.tile_height;
         
-        let board_x = (relative_x / (self.tile_width * 0.5) + relative_y / (self.tile_height * 0.5)) * 0.5;
-        let board_y = (relative_y / (self.tile_height * 0.5) - relative_x / (self.tile_width * 0.5)) * 0.5;
+        println!("Relative to board: ({:.1}, {:.1})", relative_x, relative_y);
         
-        let file = board_x.round() as i32;
-        let rank = board_y.round() as i32;
+        // Inverse of the isometric transformation used in board_to_screen:
+        // Forward: screen_x = (board_x - board_y) * tile_width * 0.5  
+        // Forward: screen_y = (board_x + board_y) * tile_height * 0.5
+        //
+        // Let u = relative_x / (tile_width * 0.5) = board_x - board_y
+        // Let v = relative_y / (tile_height * 0.5) = board_x + board_y  
+        // Solving: board_x = (u + v) / 2, board_y = (v - u) / 2
         
+        let u = relative_x / (self.tile_width * 0.5);
+        let v = relative_y / (self.tile_height * 0.5);
+        
+        let board_x = (u + v) * 0.5;
+        let board_y = (v - u) * 0.5;
+        
+        println!("Board coordinates: ({:.2}, {:.2})", board_x, board_y);
+        
+        // Apply offset correction - adjust based on the systematic offset observed
+        let corrected_x = board_x - 0.5;
+        let corrected_y = board_y - 0.0; // Don't offset Y, the rank calculation seems correct
+        
+        println!("Corrected coordinates: ({:.2}, {:.2})", corrected_x, corrected_y);
+        
+        // Round to nearest integer to get file and rank
+        let file = corrected_x.round() as i32;
+        let rank = corrected_y.round() as i32;
+        
+        println!("Final: file={}, rank={}", file, rank);
+        
+        // Verify the coordinate transformation by checking round-trip
         if file >= 0 && file < 8 && rank >= 0 && rank < 8 {
-            Position::new(file as u8, rank as u8)
+            let test_pos = Position::new(file as u8, rank as u8).unwrap();
+            let back_to_screen = self.board_to_screen(test_pos);
+            println!("Round-trip: {} -> ({:.1}, {:.1}) (should be close to input)", 
+                test_pos.to_chess_notation(), back_to_screen.x, back_to_screen.y);
+            Some(test_pos)
         } else {
+            println!("Click outside board bounds");
             None
         }
     }
 
-    /// Set selected piece and legal moves
-    pub fn set_selection(&mut self, piece_pos: Option<Position>, legal_moves: Vec<Position>) {
+    /// Set selected piece, legal moves, and cursor position
+    pub fn set_selection(&mut self, piece_pos: Option<Position>, legal_moves: Vec<Position>, cursor_pos: Option<Position>) {
         self.selected_piece = piece_pos;
         self.legal_moves = legal_moves;
+        self.cursor_position = cursor_pos;
     }
 
     /// Handle mouse input and return clicked position
@@ -280,6 +316,33 @@ impl IsometricRenderer {
                     self.tile_width,
                     self.tile_height,
                     Color::new(0.0, 1.0, 0.0, 0.4),
+                );
+            }
+        }
+
+        // Render cursor if present
+        if let Some(cursor_pos) = self.cursor_position {
+            let screen_pos = self.board_to_screen(cursor_pos);
+            if let Some(texture) = self.tile_textures.get("yellow_cursor") {
+                draw_texture_ex(
+                    texture,
+                    screen_pos.x,
+                    screen_pos.y,
+                    Color::new(1.0, 1.0, 0.0, 0.8), // Semi-transparent yellow
+                    DrawTextureParams {
+                        dest_size: Some(Vec2::new(self.tile_width, self.tile_height)),
+                        ..Default::default()
+                    },
+                );
+            } else {
+                // Fallback: yellow rectangle with border
+                draw_rectangle_lines(
+                    screen_pos.x,
+                    screen_pos.y,
+                    self.tile_width,
+                    self.tile_height,
+                    3.0,
+                    Color::new(1.0, 1.0, 0.0, 0.8),
                 );
             }
         }
