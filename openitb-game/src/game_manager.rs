@@ -14,6 +14,8 @@ pub struct GameManager {
     selected_piece: Option<Position>,
     /// Legal moves for currently selected piece
     legal_moves: Vec<Position>,
+    /// Attack targets for currently selected piece
+    attack_targets: Vec<Position>,
     /// Current cursor position (last clicked tile) - useful for gamepad support
     cursor_position: Option<Position>,
     /// Whether we're in TUI debug mode
@@ -91,6 +93,7 @@ impl GameManager {
             game_state: GameState::PlayerTurn,
             selected_piece: None,
             legal_moves: Vec::new(),
+            attack_targets: Vec::new(),
             cursor_position: None,
             debug_mode: false,
             show_coordinates: false,
@@ -128,9 +131,14 @@ impl GameManager {
         self.selected_piece
     }
 
-    /// Get legal moves for selected piece
-    pub fn get_legal_moves(&self) -> &[Position] {
-        &self.legal_moves
+    /// Get legal moves for currently selected piece (for rendering green highlights)
+    pub fn get_legal_moves(&self) -> Vec<Position> {
+        self.legal_moves.clone()
+    }
+
+    /// Get attack targets for currently selected piece (for rendering red highlights)
+    pub fn get_attack_targets(&self) -> Vec<Position> {
+        self.attack_targets.clone()
     }
 
     /// Toggle debug mode
@@ -260,13 +268,34 @@ impl GameManager {
                 if self.selected_piece == Some(pos) {
                     self.selected_piece = None;
                     self.legal_moves.clear();
+                    self.attack_targets.clear();
                     return true;
                 } else {
-                    // Select the new piece and calculate legal moves
+                    // Select the new piece and calculate legal moves and attack targets
                     self.selected_piece = Some(pos);
                     self.legal_moves = self.engine.get_legal_moves(pos);
-                    println!("Selected piece at {}, legal moves: {}", 
-                        pos.to_chess_notation(), self.legal_moves.len());
+                    self.attack_targets = self.engine.get_attack_targets(pos);
+                    println!("Selected piece at {}, legal moves: {}, attack targets: {}", 
+                        pos.to_chess_notation(), self.legal_moves.len(), self.attack_targets.len());
+                    return true;
+                }
+            } else {
+                // Clicking on non-human piece - check if it's an attack target
+                if let Some(selected_pos) = self.selected_piece {
+                    if self.attack_targets.contains(&pos) {
+                        // Attempt to attack
+                        if let Err(e) = self.make_attack(selected_pos, pos) {
+                            println!("Attack failed: {}", e);
+                        }
+                        return true;
+                    }
+                }
+                
+                // Clear selection if clicking on non-attackable piece
+                if self.selected_piece.is_some() {
+                    self.selected_piece = None;
+                    self.legal_moves.clear();
+                    self.attack_targets.clear();
                     return true;
                 }
             }
@@ -286,6 +315,7 @@ impl GameManager {
             if self.selected_piece.is_some() {
                 self.selected_piece = None;
                 self.legal_moves.clear();
+                self.attack_targets.clear();
                 return true;
             }
         }
@@ -308,6 +338,7 @@ impl GameManager {
         // Clear selection
         self.selected_piece = None;
         self.legal_moves.clear();
+        self.attack_targets.clear();
         
         // Check if game is over
         if self.engine.is_game_over() {
@@ -319,6 +350,45 @@ impl GameManager {
             println!("All player pieces moved, switching to computer turn");
         } else {
             // Player still has pieces to move
+            let remaining_moves: usize = self.engine.get_player_pieces(Player::Human)
+                .iter()
+                .map(|(_, unit)| unit.action_tokens_left as usize)
+                .sum();
+            println!("Player turn continues - {} moves remaining", remaining_moves);
+        }
+        
+        Ok(())
+    }
+
+    /// Execute an attack and update game state
+    fn make_attack(&mut self, attacker_pos: Position, target_pos: Position) -> Result<()> {
+        // Execute the attack through the engine (this will use an action token)
+        let attack_result = self.engine.execute_attack(attacker_pos, target_pos)?;
+        
+        println!("Attack executed: {} -> {} (damage: {}, destroyed: {})", 
+                 attacker_pos.to_chess_notation(), 
+                 target_pos.to_chess_notation(),
+                 attack_result.damage_dealt,
+                 attack_result.target_destroyed);
+        
+        // Track that this piece has acted (for legacy tracking)
+        self.moved_pieces.insert(attacker_pos);
+        
+        // Clear selection
+        self.selected_piece = None;
+        self.legal_moves.clear();
+        self.attack_targets.clear();
+        
+        // Check if game is over
+        if self.engine.is_game_over() {
+            self.game_state = GameState::GameOver;
+            println!("Game Over!");
+        } else if self.all_player_pieces_moved() {
+            // All player pieces have acted, switch to computer turn
+            self.game_state = GameState::ComputerTurn;
+            println!("All player pieces acted, switching to computer turn");
+        } else {
+            // Player still has pieces to act
             let remaining_moves: usize = self.engine.get_player_pieces(Player::Human)
                 .iter()
                 .map(|(_, unit)| unit.action_tokens_left as usize)

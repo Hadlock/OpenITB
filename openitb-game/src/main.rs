@@ -99,6 +99,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 renderer.set_selection(
                     game_manager.get_selected_piece(),
                     game_manager.get_legal_moves().to_vec(),
+                    game_manager.get_attack_targets().to_vec(),
                     game_manager.get_cursor_position()
                 );
                 

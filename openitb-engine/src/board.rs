@@ -370,14 +370,24 @@ impl Unit {
     }
 
     /// Get all possible attack targets from current position
+    /// Mechs can attack any unit (including other player mechs), others can only attack enemies
     pub fn get_attack_targets(&self, from: Position, board: &Board) -> Vec<Position> {
         let possible_positions = self.attack_pattern.get_attack_positions(from, None);
         
-        // Filter to only include positions with enemy units
+        // Filter based on piece type and target rules
         possible_positions.into_iter()
             .filter(|&pos| {
                 if let Some(target_unit) = board.get_piece(pos) {
-                    target_unit.player != self.player && target_unit.is_alive()
+                    if target_unit.is_alive() {
+                        match self.piece_type {
+                            // Mechs can attack any unit, including other player mechs
+                            PieceType::Mech => true,
+                            // Other unit types can only attack enemies
+                            _ => target_unit.player != self.player,
+                        }
+                    } else {
+                        false
+                    }
                 } else {
                     false
                 }

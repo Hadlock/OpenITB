@@ -1,5 +1,5 @@
 use macroquad::prelude::*;
-use openitb_engine::{Board, Position, PieceType, Player, Terrain, Unit};
+use openitb_engine::{Board, Position, PieceType, Player, Terrain};
 use std::collections::HashMap;
 
 /// Isometric tile renderer for the game
@@ -15,6 +15,8 @@ pub struct IsometricRenderer {
     selected_piece: Option<Position>,
     /// Legal moves for selected piece
     legal_moves: Vec<Position>,
+    /// Attack targets for selected piece
+    attack_targets: Vec<Position>,
     /// Current cursor position (last clicked tile)
     cursor_position: Option<Position>,
     /// Animation selected piece (for red highlight)
@@ -110,6 +112,7 @@ impl IsometricRenderer {
             board_offset,
             selected_piece: None,
             legal_moves: Vec::new(),
+            attack_targets: Vec::new(),
             cursor_position: None,
             animation_selected_piece: None,
             animation_legal_moves: Vec::new(),
@@ -209,10 +212,11 @@ impl IsometricRenderer {
         }
     }
 
-    /// Set selected piece, legal moves, and cursor position
-    pub fn set_selection(&mut self, piece_pos: Option<Position>, legal_moves: Vec<Position>, cursor_pos: Option<Position>) {
+    /// Set selected piece, legal moves, attack targets, and cursor position
+    pub fn set_selection(&mut self, piece_pos: Option<Position>, legal_moves: Vec<Position>, attack_targets: Vec<Position>, cursor_pos: Option<Position>) {
         self.selected_piece = piece_pos;
         self.legal_moves = legal_moves;
+        self.attack_targets = attack_targets;
         self.cursor_position = cursor_pos;
     }
 
@@ -421,6 +425,32 @@ impl IsometricRenderer {
                         self.tile_width,
                         self.tile_height,
                         Color::new(0.0, 1.0, 0.0, 0.7), // Bright green
+                    );
+                }
+            }
+
+            // Show red highlights for attack targets
+            for &attack_pos in &self.attack_targets {
+                let screen_pos = self.board_to_screen(attack_pos);
+                if let Some(texture) = self.tile_textures.get("red_highlight") {
+                    draw_texture_ex(
+                        texture,
+                        screen_pos.x,
+                        screen_pos.y,
+                        Color::new(1.0, 0.0, 0.0, 0.8), // Bright red
+                        DrawTextureParams {
+                            dest_size: Some(Vec2::new(self.tile_width, self.tile_height)),
+                            ..Default::default()
+                        },
+                    );
+                } else {
+                    // Fallback: bright red rectangle
+                    draw_rectangle(
+                        screen_pos.x,
+                        screen_pos.y,
+                        self.tile_width,
+                        self.tile_height,
+                        Color::new(1.0, 0.0, 0.0, 0.7), // Bright red
                     );
                 }
             }
