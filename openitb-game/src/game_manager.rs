@@ -254,6 +254,18 @@ impl GameManager {
         self.cursor_position
     }
 
+    /// End player turn early, switching to computer turn
+    pub fn end_turn_early(&mut self) {
+        if self.game_state == GameState::PlayerTurn {
+            println!("Player ended turn early, switching to computer turn");
+            // Clear selection
+            self.selected_piece = None;
+            self.legal_moves.clear();
+            self.attack_targets.clear();
+            self.game_state = GameState::ComputerTurn;
+        }
+    }
+
     /// Handle piece selection from UI
     /// Returns true if selection changed
     pub fn select_piece(&mut self, pos: Position) -> bool {

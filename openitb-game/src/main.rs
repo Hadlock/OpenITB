@@ -127,7 +127,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 // Render egui panels
                 egui_macroquad::ui(|ctx| {
-                    egui_panels.render(ctx, &game_manager);
+                    egui_panels.render(ctx, &mut game_manager);
                 });
 
                 // Draw egui

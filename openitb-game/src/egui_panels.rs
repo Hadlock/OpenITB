@@ -5,17 +5,19 @@ use crate::GameManager;
 /// Main egui panels for unit information and debug data
 pub struct EguiPanels {
     show_panels: bool,
+    show_end_turn_modal: bool,
 }
 
 impl EguiPanels {
     pub fn new() -> Self {
         Self {
             show_panels: true,
+            show_end_turn_modal: false,
         }
     }
 
     /// Render all egui panels
-    pub fn render(&mut self, ctx: &egui::Context, game_manager: &GameManager) {
+    pub fn render(&mut self, ctx: &egui::Context, game_manager: &mut GameManager) {
         if !self.show_panels {
             return;
         }
@@ -23,6 +25,7 @@ impl EguiPanels {
         self.render_mech_panel(ctx, game_manager);
         self.render_leaper_panel(ctx, game_manager);
         self.render_debug_panel(ctx, game_manager);
+        self.render_end_turn_modal(ctx, game_manager);
     }
 
     /// Toggle panel visibility
@@ -31,7 +34,7 @@ impl EguiPanels {
     }
 
     /// Render mech units panel
-    fn render_mech_panel(&mut self, ctx: &egui::Context, game_manager: &GameManager) {
+    fn render_mech_panel(&mut self, ctx: &egui::Context, game_manager: &mut GameManager) {
         egui::Window::new("Mechs")
             .default_pos([10.0, 10.0])
             .default_size([200.0, 150.0])
@@ -50,6 +53,14 @@ impl EguiPanels {
 
                 for (pos, unit) in mechs {
                     self.render_unit_info(ui, *pos, unit);
+                }
+                
+                // Only show End Turn Early button during player turn
+                if matches!(game_manager.get_game_state(), GameState::PlayerTurn) {
+                    ui.separator();
+                    if ui.button("End Turn Early").clicked() {
+                        self.show_end_turn_modal = true;
+                    }
                 }
             });
     }
@@ -169,5 +180,37 @@ impl EguiPanels {
             });
         });
         ui.separator();
+    }
+
+    /// Render the end turn early confirmation modal
+    fn render_end_turn_modal(&mut self, ctx: &egui::Context, game_manager: &mut GameManager) {
+        if !self.show_end_turn_modal {
+            return;
+        }
+
+        egui::Window::new("End Turn Early")
+            .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+            .collapsible(false)
+            .resizable(false)
+            .show(ctx, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.label("Are you sure?");
+                    ui.add_space(10.0);
+                    ui.label("This will end your turn early!");
+                    ui.label("You cannot undo this action.");
+                    ui.add_space(15.0);
+                    
+                    ui.horizontal(|ui| {
+                        if ui.button("Yes, End Turn").clicked() {
+                            game_manager.end_turn_early();
+                            self.show_end_turn_modal = false;
+                        }
+                        
+                        if ui.button("No, Cancel").clicked() {
+                            self.show_end_turn_modal = false;
+                        }
+                    });
+                });
+            });
     }
 }
