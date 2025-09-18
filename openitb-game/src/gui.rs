@@ -120,23 +120,13 @@ impl IsometricRenderer {
         )
     }
 
-    /// Convert screen position to board coordinates (inverse of board_to_screen)
+    /// Convert screen position to board coordinates with proper diamond-shaped hit detection
     fn screen_to_board(&self, screen_pos: Vec2) -> Option<Position> {
         println!("Raw screen click: ({:.1}, {:.1})", screen_pos.x, screen_pos.y);
         
-        // Remove the same offsets that board_to_screen adds
+        // First, get the approximate tile using rectangular coordinate system
         let relative_x = screen_pos.x - self.board_offset.x - self.tile_width * 4.0;
         let relative_y = screen_pos.y - self.board_offset.y - self.tile_height;
-        
-        println!("Relative to board: ({:.1}, {:.1})", relative_x, relative_y);
-        
-        // Inverse of the isometric transformation used in board_to_screen:
-        // Forward: screen_x = (board_x - board_y) * tile_width * 0.5  
-        // Forward: screen_y = (board_x + board_y) * tile_height * 0.5
-        //
-        // Let u = relative_x / (tile_width * 0.5) = board_x - board_y
-        // Let v = relative_y / (tile_height * 0.5) = board_x + board_y  
-        // Solving: board_x = (u + v) / 2, board_y = (v - u) / 2
         
         let u = relative_x / (self.tile_width * 0.5);
         let v = relative_y / (self.tile_height * 0.5);
@@ -144,29 +134,61 @@ impl IsometricRenderer {
         let board_x = (u + v) * 0.5;
         let board_y = (v - u) * 0.5;
         
-        println!("Board coordinates: ({:.2}, {:.2})", board_x, board_y);
-        
-        // Apply offset correction - adjust based on the systematic offset observed
+        // Apply offset correction
         let corrected_x = board_x - 0.5;
-        let corrected_y = board_y - 0.0; // Don't offset Y, the rank calculation seems correct
+        let corrected_y = board_y - 0.0;
         
-        println!("Corrected coordinates: ({:.2}, {:.2})", corrected_x, corrected_y);
+        println!("Approximate board coordinates: ({:.2}, {:.2})", corrected_x, corrected_y);
         
-        // Round to nearest integer to get file and rank
-        let file = corrected_x.round() as i32;
-        let rank = corrected_y.round() as i32;
+        // Get the candidate tile and its neighbors
+        let base_file = corrected_x.floor() as i32;
+        let base_rank = corrected_y.floor() as i32;
         
-        println!("Final: file={}, rank={}", file, rank);
+        // Check the candidate tile and its neighbors for diamond-shaped hit detection
+        let candidates = vec![
+            (base_file, base_rank),
+            (base_file + 1, base_rank),
+            (base_file, base_rank + 1),
+            (base_file + 1, base_rank + 1),
+        ];
         
-        // Verify the coordinate transformation by checking round-trip
-        if file >= 0 && file < 8 && rank >= 0 && rank < 8 {
-            let test_pos = Position::new(file as u8, rank as u8).unwrap();
-            let back_to_screen = self.board_to_screen(test_pos);
-            println!("Round-trip: {} -> ({:.1}, {:.1}) (should be close to input)", 
-                test_pos.to_chess_notation(), back_to_screen.x, back_to_screen.y);
-            Some(test_pos)
+        println!("Checking candidates: {:?}", candidates);
+        
+        // Find the best match using diamond-shaped distance
+        let mut best_match: Option<(i32, i32)> = None;
+        let mut min_distance = f32::INFINITY;
+        
+        for &(file, rank) in &candidates {
+            if file >= 0 && file < 8 && rank >= 0 && rank < 8 {
+                let tile_center = self.board_to_screen(Position::new(file as u8, rank as u8).unwrap());
+                let tile_center_x = tile_center.x + self.tile_width * 0.5;
+                let tile_center_y = tile_center.y + self.tile_height * 0.5;
+                
+                // Check if click is within diamond bounds using isometric distance
+                let dx = (screen_pos.x - tile_center_x) / (self.tile_width * 0.5);
+                let dy = (screen_pos.y - tile_center_y) / (self.tile_height * 0.5);
+                
+                // Diamond-shaped boundary check: |dx| + |dy| <= 1
+                let diamond_distance = dx.abs() + dy.abs();
+                
+                println!("Tile ({}, {}): center=({:.1}, {:.1}), diamond_distance={:.2}", 
+                    file, rank, tile_center_x, tile_center_y, diamond_distance);
+                
+                if diamond_distance <= 1.0 && diamond_distance < min_distance {
+                    min_distance = diamond_distance;
+                    best_match = Some((file, rank));
+                }
+            }
+        }
+        
+        if let Some((file, rank)) = best_match {
+            println!("Selected: file={}, rank={} (diamond_distance={:.2})", file, rank, min_distance);
+            let pos = Position::new(file as u8, rank as u8).unwrap();
+            let back_to_screen = self.board_to_screen(pos);
+            println!("Round-trip: {} -> ({:.1}, {:.1})", pos.to_chess_notation(), back_to_screen.x, back_to_screen.y);
+            Some(pos)
         } else {
-            println!("Click outside board bounds");
+            println!("Click outside any diamond tile bounds");
             None
         }
     }
