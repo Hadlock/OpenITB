@@ -1,4 +1,4 @@
-use openitb_engine::{Engine, Board, GameState, Player, Position, Move, Unit};
+use openitb_engine::{Engine, Board, GameState, Player, Position, Move, Unit, PieceType};
 use anyhow::Result;
 use std::time::Instant;
 use std::collections::HashSet;
@@ -27,6 +27,11 @@ pub struct GameManager {
     current_animation_move: usize,
     animation_selected_piece: Option<Position>,
     animation_legal_moves: Vec<Position>,
+    /// Attack animation state
+    animation_attack_target: Option<Position>,
+    animation_attack_positions: Vec<Position>,
+    animation_attacker_pos: Option<Position>,
+    animation_original_pos: Option<Position>, // For leap-back animation
     /// Pieces that have already moved this turn
     moved_pieces: std::collections::HashSet<Position>,
 }
@@ -39,6 +44,12 @@ enum ComputerAnimationPhase {
     ShowingLegalMoves,
     ExecutingMove,
     DelayBetweenMoves,
+    CheckingForAttacks,
+    ShowingAttackTarget,
+    ExecutingAttack,
+    AttackAnimationLeap,
+    AttackAnimationReturn,
+    AttackComplete,
 }
 
 impl GameManager {
@@ -89,6 +100,10 @@ impl GameManager {
             current_animation_move: 0,
             animation_selected_piece: None,
             animation_legal_moves: Vec::new(),
+            animation_attack_target: None,
+            animation_attack_positions: Vec::new(),
+            animation_attacker_pos: None,
+            animation_original_pos: None,
             moved_pieces: HashSet::new(),
         }
     }
@@ -143,6 +158,24 @@ impl GameManager {
             self.animation_legal_moves.clone()
         } else {
             Vec::new()
+        }
+    }
+
+    /// Get animation attack positions for rendering attack range highlights
+    pub fn get_animation_attack_positions(&self) -> Vec<Position> {
+        if self.game_state == GameState::ComputerAnimating {
+            self.animation_attack_positions.clone()
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Get animation attack target for rendering attack target highlight
+    pub fn get_animation_attack_target(&self) -> Option<Position> {
+        if self.game_state == GameState::ComputerAnimating {
+            self.animation_attack_target
+        } else {
+            None
         }
     }
 
@@ -305,30 +338,17 @@ impl GameManager {
 
         println!("Processing computer turn...");
         
-        // Get all computer pieces and their best moves
-        let computer_pieces = self.engine.get_player_pieces(Player::Computer);
-        let mut computer_moves = Vec::new();
+        // Reset all computer units for their turn
+        self.engine.reset_player_turn(Player::Computer);
         
-        for (pos, _piece) in computer_pieces {
-            if let Some(computer_move) = self.simple_ai_move(pos) {
-                computer_moves.push(computer_move);
-            }
-        }
-
-        if computer_moves.is_empty() {
-            // No moves available - end turn
-            self.game_state = GameState::GameOver;
-            return true;
-        }
-
-        // Start computer animation sequence
-        self.animation_moves = computer_moves;
+        // Start computer animation sequence - begin with checking for attacks
+        self.animation_moves.clear();
         self.current_animation_move = 0;
-        self.animation_phase = ComputerAnimationPhase::InitialPause;
+        self.animation_phase = ComputerAnimationPhase::CheckingForAttacks;
         self.animation_timer = Some(Instant::now());
         self.game_state = GameState::ComputerAnimating;
         
-        println!("Starting computer animation with {} moves", self.animation_moves.len());
+        println!("Starting computer turn - checking for attacks");
         true
     }
 
@@ -425,6 +445,111 @@ impl GameManager {
                         self.animation_phase = ComputerAnimationPhase::ShowingSelectedPiece;
                         self.animation_timer = Some(Instant::now());
                     }
+                }
+            }
+            ComputerAnimationPhase::CheckingForAttacks => {
+                if elapsed >= 0.2 {
+                    // Check if any units can attack
+                    let player_positions = self.engine.get_player_positions(Player::Computer);
+                    let mut found_attack = false;
+                    
+                    for pos in player_positions {
+                        if let Some(unit) = self.engine.get_unit(pos) {
+                            if unit.attacks_left > 0 {
+                                let attack_targets = self.engine.get_attack_targets(pos);
+                                if !attack_targets.is_empty() {
+                                    // Found an attack opportunity
+                                    self.animation_selected_piece = Some(pos);
+                                    self.animation_attack_positions = attack_targets;
+                                    self.animation_attack_target = Some(self.animation_attack_positions[0]); // Use first target for now
+                                    self.animation_phase = ComputerAnimationPhase::ShowingAttackTarget;
+                                    self.animation_timer = Some(Instant::now());
+                                    found_attack = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    if !found_attack {
+                        // No more attacks available, move to the move phase
+                        let computer_pieces = self.engine.get_player_pieces(Player::Computer);
+                        let mut computer_moves = Vec::new();
+                        
+                        for (pos, _piece) in computer_pieces {
+                            if let Some(computer_move) = self.simple_ai_move(pos) {
+                                computer_moves.push(computer_move);
+                            }
+                        }
+
+                        if computer_moves.is_empty() {
+                            // No moves available either - end turn
+                            self.finish_computer_animation();
+                            return true;
+                        } else {
+                            // Start move animations
+                            self.animation_moves = computer_moves;
+                            self.current_animation_move = 0;
+                            self.animation_phase = ComputerAnimationPhase::InitialPause;
+                            self.animation_timer = Some(Instant::now());
+                            
+                            println!("Switching to moves with {} moves", self.animation_moves.len());
+                        }
+                    }
+                }
+            }
+            ComputerAnimationPhase::ShowingAttackTarget => {
+                if elapsed >= 0.8 {
+                    // Show the attack target, then execute
+                    self.animation_phase = ComputerAnimationPhase::ExecutingAttack;
+                    self.animation_timer = Some(Instant::now());
+                }
+            }
+            ComputerAnimationPhase::ExecutingAttack => {
+                if elapsed >= 0.3 {
+                    // Execute the attack
+                    if let (Some(from), Some(target)) = (self.animation_selected_piece, self.animation_attack_target) {
+                        if let Some(unit) = self.engine.get_unit(from) {
+                            if unit.piece_type == PieceType::Leaper {
+                                // Start leap animation for leaper
+                                self.animation_phase = ComputerAnimationPhase::AttackAnimationLeap;
+                            } else {
+                                // Other units attack without leap
+                                let _result = self.engine.execute_attack(from, target);
+                                self.animation_phase = ComputerAnimationPhase::AttackComplete;
+                            }
+                            self.animation_timer = Some(Instant::now());
+                        }
+                    }
+                }
+            }
+            ComputerAnimationPhase::AttackAnimationLeap => {
+                if elapsed >= 0.4 {
+                    // Leap to target position (visual effect)
+                    self.animation_phase = ComputerAnimationPhase::AttackAnimationReturn;
+                    self.animation_timer = Some(Instant::now());
+                }
+            }
+            ComputerAnimationPhase::AttackAnimationReturn => {
+                if elapsed >= 0.4 {
+                    // Return to original position and execute attack
+                    if let (Some(from), Some(target)) = (self.animation_selected_piece, self.animation_attack_target) {
+                        let _result = self.engine.execute_attack(from, target);
+                    }
+                    self.animation_phase = ComputerAnimationPhase::AttackComplete;
+                    self.animation_timer = Some(Instant::now());
+                }
+            }
+            ComputerAnimationPhase::AttackComplete => {
+                if elapsed >= 0.3 {
+                    // Clear attack animation data
+                    self.animation_selected_piece = None;
+                    self.animation_attack_positions.clear();
+                    self.animation_attack_target = None;
+                    
+                    // Check for more attacks
+                    self.animation_phase = ComputerAnimationPhase::CheckingForAttacks;
+                    self.animation_timer = Some(Instant::now());
                 }
             }
             ComputerAnimationPhase::None => {

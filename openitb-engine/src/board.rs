@@ -87,6 +87,146 @@ pub enum Weapon {
     // Add more weapons as needed
 }
 
+/// Attack patterns for units
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AttackPattern {
+    None,
+    Rook,           // Straight lines, unlimited range
+    LimitedRook(u8), // Straight lines, limited range
+    Pawn,           // Forward attack only
+    Knight,         // L-shaped pattern
+    King,           // Adjacent squares
+    Queen,          // Rook + Bishop
+    Bishop,         // Diagonal lines
+    RangedBallistic(u8), // Future: artillery with range and arc
+}
+
+impl AttackPattern {
+    /// Get all possible attack positions from a given position
+    pub fn get_attack_positions(&self, from: Position, max_range: Option<u8>) -> Vec<Position> {
+        let range = max_range.unwrap_or(7); // Default to board edge
+        let mut positions = Vec::new();
+
+        match self {
+            AttackPattern::None => {},
+            AttackPattern::LimitedRook(pattern_range) => {
+                let actual_range = range.min(*pattern_range);
+                positions.extend(self.get_rook_positions(from, actual_range));
+            },
+            AttackPattern::Rook => {
+                positions.extend(self.get_rook_positions(from, range));
+            },
+            AttackPattern::King => {
+                positions.extend(self.get_king_positions(from));
+            },
+            AttackPattern::Knight => {
+                positions.extend(self.get_knight_positions(from));
+            },
+            AttackPattern::Pawn => {
+                positions.extend(self.get_pawn_positions(from));
+            },
+            AttackPattern::Queen => {
+                positions.extend(self.get_rook_positions(from, range));
+                positions.extend(self.get_bishop_positions(from, range));
+            },
+            AttackPattern::Bishop => {
+                positions.extend(self.get_bishop_positions(from, range));
+            },
+            AttackPattern::RangedBallistic(artillery_range) => {
+                // TODO: Implement ballistic arc calculations
+                positions.extend(self.get_rook_positions(from, *artillery_range));
+            },
+        }
+
+        positions
+    }
+
+    fn get_rook_positions(&self, from: Position, range: u8) -> Vec<Position> {
+        let mut positions = Vec::new();
+        let directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]; // Up, Down, Right, Left
+
+        for (dx, dy) in directions {
+            for i in 1..=range {
+                let new_file = from.file as i8 + dx * i as i8;
+                let new_rank = from.rank as i8 + dy * i as i8;
+                
+                if let Some(pos) = Position::new(new_file as u8, new_rank as u8) {
+                    positions.push(pos);
+                } else {
+                    break; // Out of bounds, stop in this direction
+                }
+            }
+        }
+        positions
+    }
+
+    fn get_bishop_positions(&self, from: Position, range: u8) -> Vec<Position> {
+        let mut positions = Vec::new();
+        let directions = [(1, 1), (1, -1), (-1, 1), (-1, -1)]; // Diagonals
+
+        for (dx, dy) in directions {
+            for i in 1..=range {
+                let new_file = from.file as i8 + dx * i as i8;
+                let new_rank = from.rank as i8 + dy * i as i8;
+                
+                if let Some(pos) = Position::new(new_file as u8, new_rank as u8) {
+                    positions.push(pos);
+                } else {
+                    break;
+                }
+            }
+        }
+        positions
+    }
+
+    fn get_king_positions(&self, from: Position) -> Vec<Position> {
+        let mut positions = Vec::new();
+        let directions = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)];
+
+        for (dx, dy) in directions {
+            let new_file = from.file as i8 + dx;
+            let new_rank = from.rank as i8 + dy;
+            
+            if let Some(pos) = Position::new(new_file as u8, new_rank as u8) {
+                positions.push(pos);
+            }
+        }
+        positions
+    }
+
+    fn get_knight_positions(&self, from: Position) -> Vec<Position> {
+        let mut positions = Vec::new();
+        let moves = [(-2, -1), (-2, 1), (-1, -2), (-1, 2), (1, -2), (1, 2), (2, -1), (2, 1)];
+
+        for (dx, dy) in moves {
+            let new_file = from.file as i8 + dx;
+            let new_rank = from.rank as i8 + dy;
+            
+            if let Some(pos) = Position::new(new_file as u8, new_rank as u8) {
+                positions.push(pos);
+            }
+        }
+        positions
+    }
+
+    fn get_pawn_positions(&self, from: Position) -> Vec<Position> {
+        let mut positions = Vec::new();
+        
+        // Pawn attacks diagonally forward (assuming white pawns move "up" the board)
+        let forward_attacks = [(1, 1), (-1, 1)];
+        
+        for (dx, dy) in forward_attacks {
+            let new_file = from.file as i8 + dx;
+            let new_rank = from.rank as i8 + dy;
+            
+            if let Some(pos) = Position::new(new_file as u8, new_rank as u8) {
+                positions.push(pos);
+            }
+        }
+        positions
+    }
+}
+
 /// Powerup types
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Powerup {
@@ -124,6 +264,10 @@ pub struct Unit {
     pub moves_left: u8,
     pub max_hit_points: u8,
     pub current_hit_points: u8,
+    pub attack_pattern: AttackPattern,
+    pub default_attacks: u8,
+    pub attacks_left: u8,
+    pub attack_damage: u8,
     pub special_effects: Vec<SpecialEffect>,
 }
 
@@ -144,6 +288,10 @@ impl Unit {
             moves_left: 1,
             max_hit_points: 3,
             current_hit_points: 3,
+            attack_pattern: AttackPattern::LimitedRook(1), // Can attack adjacent squares in rook pattern
+            default_attacks: 1,
+            attacks_left: 1,
+            attack_damage: 1,
             special_effects: Vec::new(),
         }
     }
@@ -164,6 +312,10 @@ impl Unit {
             moves_left: 1,
             max_hit_points: 2,
             current_hit_points: 2,
+            attack_pattern: AttackPattern::LimitedRook(1), // Can leap to attack adjacent rook squares
+            default_attacks: 1,
+            attacks_left: 1,
+            attack_damage: 1,
             special_effects: Vec::new(),
         }
     }
@@ -180,10 +332,31 @@ impl Unit {
         }
     }
 
+    /// Reset attacks for a new turn
+    pub fn reset_attacks(&mut self) {
+        self.attacks_left = self.default_attacks;
+    }
+
+    /// Reset both moves and attacks for a new turn
+    pub fn reset_turn(&mut self) {
+        self.reset_moves();
+        self.reset_attacks();
+    }
+
     /// Use one move
     pub fn use_move(&mut self) -> bool {
         if self.moves_left > 0 {
             self.moves_left -= 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Use one attack
+    pub fn use_attack(&mut self) -> bool {
+        if self.attacks_left > 0 {
+            self.attacks_left -= 1;
             true
         } else {
             false
@@ -195,6 +368,35 @@ impl Unit {
         self.moves_left > 0 && 
         !self.special_effects.contains(&SpecialEffect::Stunned) &&
         !self.special_effects.contains(&SpecialEffect::Frozen)
+    }
+
+    /// Check if unit can still attack
+    pub fn can_attack(&self) -> bool {
+        self.attacks_left > 0 &&
+        !self.special_effects.contains(&SpecialEffect::Stunned) &&
+        !self.special_effects.contains(&SpecialEffect::Frozen)
+    }
+
+    /// Take damage and return true if unit is destroyed
+    pub fn take_damage(&mut self, damage: u8) -> bool {
+        self.current_hit_points = self.current_hit_points.saturating_sub(damage);
+        !self.is_alive()
+    }
+
+    /// Get all possible attack targets from current position
+    pub fn get_attack_targets(&self, from: Position, board: &Board) -> Vec<Position> {
+        let possible_positions = self.attack_pattern.get_attack_positions(from, None);
+        
+        // Filter to only include positions with enemy units
+        possible_positions.into_iter()
+            .filter(|&pos| {
+                if let Some(target_unit) = board.get_piece(pos) {
+                    target_unit.player != self.player && target_unit.is_alive()
+                } else {
+                    false
+                }
+            })
+            .collect()
     }
 
     /// Check if unit is alive
@@ -348,6 +550,14 @@ pub enum GameState {
     ComputerThinking,
     ComputerAnimating,
     GameOver,
+}
+
+/// Result of an attack action
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AttackResult {
+    pub damage_dealt: u8,
+    pub target_destroyed: bool,
+    pub target_position: Position,
 }
 
 #[cfg(test)]

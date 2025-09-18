@@ -21,6 +21,10 @@ pub struct IsometricRenderer {
     animation_selected_piece: Option<Position>,
     /// Animation legal moves (for purple highlights)
     animation_legal_moves: Vec<Position>,
+    /// Animation attack positions (for orange highlights)
+    animation_attack_positions: Vec<Position>,
+    /// Animation attack target (for red target highlight)
+    animation_attack_target: Option<Position>,
     /// Scale factor for rendering
     scale: f32,
 }
@@ -109,6 +113,8 @@ impl IsometricRenderer {
             cursor_position: None,
             animation_selected_piece: None,
             animation_legal_moves: Vec::new(),
+            animation_attack_positions: Vec::new(),
+            animation_attack_target: None,
             scale,
         }
     }
@@ -210,10 +216,17 @@ impl IsometricRenderer {
         self.cursor_position = cursor_pos;
     }
 
-    /// Set animation highlights for computer moves
-    pub fn set_animation_highlights(&mut self, selected_piece: Option<Position>, legal_moves: Vec<Position>) {
+    /// Set animation highlights for computer moves and attacks
+    pub fn set_animation_highlights(&mut self, 
+        selected_piece: Option<Position>, 
+        legal_moves: Vec<Position>,
+        attack_positions: Vec<Position>,
+        attack_target: Option<Position>
+    ) {
         self.animation_selected_piece = selected_piece;
         self.animation_legal_moves = legal_moves;
+        self.animation_attack_positions = attack_positions;
+        self.animation_attack_target = attack_target;
     }
 
     /// Handle mouse input and return clicked position
@@ -410,6 +423,59 @@ impl IsometricRenderer {
                         Color::new(0.0, 1.0, 0.0, 0.7), // Bright green
                     );
                 }
+            }
+        }
+
+        // Highlight attack positions with orange/red
+        for &attack_pos in &self.animation_attack_positions {
+            let screen_pos = self.board_to_screen(attack_pos);
+            // Use red highlight for attack positions
+            if let Some(texture) = self.tile_textures.get("red_highlight") {
+                draw_texture_ex(
+                    texture,
+                    screen_pos.x,
+                    screen_pos.y,
+                    Color::new(1.0, 0.3, 0.0, 0.8), // Orange-red
+                    DrawTextureParams {
+                        dest_size: Some(Vec2::new(self.tile_width, self.tile_height)),
+                        ..Default::default()
+                    },
+                );
+            } else {
+                // Fallback: orange-red rectangle
+                draw_rectangle(
+                    screen_pos.x,
+                    screen_pos.y,
+                    self.tile_width,
+                    self.tile_height,
+                    Color::new(1.0, 0.3, 0.0, 0.7), // Orange-red
+                );
+            }
+        }
+
+        // Highlight specific attack target with brighter red
+        if let Some(target_pos) = self.animation_attack_target {
+            let screen_pos = self.board_to_screen(target_pos);
+            if let Some(texture) = self.tile_textures.get("red_highlight") {
+                draw_texture_ex(
+                    texture,
+                    screen_pos.x,
+                    screen_pos.y,
+                    Color::new(1.0, 0.0, 0.0, 1.0), // Bright red, fully opaque
+                    DrawTextureParams {
+                        dest_size: Some(Vec2::new(self.tile_width, self.tile_height)),
+                        ..Default::default()
+                    },
+                );
+            } else {
+                // Fallback: bright red rectangle
+                draw_rectangle(
+                    screen_pos.x,
+                    screen_pos.y,
+                    self.tile_width,
+                    self.tile_height,
+                    Color::new(1.0, 0.0, 0.0, 0.8), // Bright red
+                );
             }
         }
 

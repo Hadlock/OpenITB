@@ -1,4 +1,4 @@
-use crate::board::{Board, Move, Position, Player, PieceType, Unit};
+use crate::board::{Board, Move, Position, Player, PieceType, Unit, AttackResult};
 use anyhow::Result;
 use std::collections::HashSet;
 
@@ -115,6 +115,24 @@ impl Engine {
         }
     }
 
+    /// Reset attacks for all units of a given player
+    pub fn reset_player_attacks(&mut self, player: Player) {
+        for unit in self.board.pieces.values_mut() {
+            if unit.player == player {
+                unit.reset_attacks();
+            }
+        }
+    }
+
+    /// Reset both moves and attacks for all units of a given player
+    pub fn reset_player_turn(&mut self, player: Player) {
+        for unit in self.board.pieces.values_mut() {
+            if unit.player == player {
+                unit.reset_turn();
+            }
+        }
+    }
+
     /// Use a move for the unit at the given position
     pub fn use_unit_move(&mut self, pos: Position) -> bool {
         if let Some(unit) = self.board.pieces.get_mut(&pos) {
@@ -122,6 +140,71 @@ impl Engine {
         } else {
             false
         }
+    }
+
+    /// Use an attack for the unit at the given position
+    pub fn use_unit_attack(&mut self, pos: Position) -> bool {
+        if let Some(unit) = self.board.pieces.get_mut(&pos) {
+            unit.use_attack()
+        } else {
+            false
+        }
+    }
+
+    /// Get all possible attack targets for a unit at the given position
+    pub fn get_attack_targets(&self, pos: Position) -> Vec<Position> {
+        if let Some(unit) = self.board.pieces.get(&pos) {
+            if unit.can_attack() {
+                unit.get_attack_targets(pos, &self.board)
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Execute an attack from one position to another
+    pub fn execute_attack(&mut self, attacker_pos: Position, target_pos: Position) -> Result<AttackResult> {
+        // Validate attacker exists and can attack
+        let attacker_damage = {
+            let attacker = self.board.pieces.get(&attacker_pos)
+                .ok_or_else(|| anyhow::anyhow!("No unit at attacker position"))?;
+            
+            if !attacker.can_attack() {
+                return Err(anyhow::anyhow!("Attacker cannot attack"));
+            }
+
+            let valid_targets = attacker.get_attack_targets(attacker_pos, &self.board);
+            if !valid_targets.contains(&target_pos) {
+                return Err(anyhow::anyhow!("Invalid attack target"));
+            }
+
+            attacker.attack_damage
+        };
+
+        // Use attacker's attack
+        if !self.use_unit_attack(attacker_pos) {
+            return Err(anyhow::anyhow!("Failed to use attack"));
+        }
+
+        // Apply damage to target
+        let target_destroyed = if let Some(target) = self.board.pieces.get_mut(&target_pos) {
+            target.take_damage(attacker_damage)
+        } else {
+            return Err(anyhow::anyhow!("No target at position"));
+        };
+
+        // Remove destroyed units
+        if target_destroyed {
+            self.board.pieces.remove(&target_pos);
+        }
+
+        Ok(AttackResult {
+            damage_dealt: attacker_damage,
+            target_destroyed,
+            target_position: target_pos,
+        })
     }
 
     /// Get all pieces for a given player
@@ -132,6 +215,21 @@ impl Engine {
             .filter(|(_, unit)| unit.player == player)
             .map(|(&pos, unit)| (pos, unit.clone()))
             .collect()
+    }
+
+    /// Get all positions for pieces of a given player
+    pub fn get_player_positions(&self, player: Player) -> Vec<Position> {
+        self.board
+            .pieces
+            .iter()
+            .filter(|(_, unit)| unit.player == player)
+            .map(|(&pos, _)| pos)
+            .collect()
+    }
+
+    /// Get unit at a given position
+    pub fn get_unit(&self, pos: Position) -> Option<&Unit> {
+        self.board.pieces.get(&pos)
     }
 
     /// Simple AI: get a random legal move for the computer player

@@ -94,7 +94,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // Update renderer with computer animation highlights
                 renderer.set_animation_highlights(
                     game_manager.get_animation_selected_piece(),
-                    game_manager.get_animation_legal_moves()
+                    game_manager.get_animation_legal_moves(),
+                    game_manager.get_animation_attack_positions(),
+                    game_manager.get_animation_attack_target()
                 );
 
                 // Render the game
