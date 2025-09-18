@@ -592,19 +592,35 @@ impl GameManager {
             return None;
         }
 
-        // Simple strategy: move towards human pieces or towards center
+        // Filter moves by action token availability
         let board = self.engine.get_board();
+        let unit = board.pieces.get(&pos)?;
+        let available_tokens = unit.action_tokens_left;
+        
+        let affordable_moves: Vec<Position> = legal_moves.into_iter()
+            .filter(|&target_pos| {
+                let move_distance = self.engine.calculate_move_distance(pos, target_pos);
+                move_distance <= available_tokens
+            })
+            .collect();
+
+        if affordable_moves.is_empty() {
+            // Unit has no action tokens left for any moves
+            return None;
+        }
+
+        // Simple strategy: move towards human pieces or towards center
         let human_pieces: Vec<Position> = board.pieces.iter()
             .filter(|(_, piece)| piece.player == Player::Human)
             .map(|(&pos, _)| pos)
             .collect();
 
         if !human_pieces.is_empty() {
-            // Find the move that gets closest to a human piece
+            // Find the affordable move that gets closest to a human piece
             let mut best_move = None;
             let mut best_distance = f32::MAX;
 
-            for &target_pos in &legal_moves {
+            for &target_pos in &affordable_moves {
                 for &human_pos in &human_pieces {
                     let distance = ((target_pos.file as f32 - human_pos.file as f32).powi(2) + 
                                    (target_pos.rank as f32 - human_pos.rank as f32).powi(2)).sqrt();
@@ -617,8 +633,8 @@ impl GameManager {
 
             best_move
         } else {
-            // No human pieces, just move randomly
-            Some(Move::new(pos, legal_moves[0]))
+            // No human pieces, just move to the first affordable position
+            Some(Move::new(pos, affordable_moves[0]))
         }
     }
 

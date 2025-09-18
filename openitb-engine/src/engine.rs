@@ -81,6 +81,14 @@ impl Engine {
         reachable.into_iter().collect()
     }
 
+    /// Calculate the minimum number of moves required to go from one position to another
+    /// This uses Manhattan distance since pieces move orthogonally
+    pub fn calculate_move_distance(&self, from: Position, to: Position) -> u8 {
+        let dx = (to.file as i8 - from.file as i8).abs() as u8;
+        let dy = (to.rank as i8 - from.rank as i8).abs() as u8;
+        dx + dy // Manhattan distance for orthogonal movement
+    }
+
     /// Make a move on the board
     pub fn make_move(&mut self, mov: Move) -> Result<()> {
         // Validate the move is legal
@@ -89,9 +97,23 @@ impl Engine {
             anyhow::bail!("Illegal move: {}", mov.to_notation());
         }
 
-        // Use an action token for the move
-        if !self.use_unit_action_token(mov.from) {
-            anyhow::bail!("Unit has no action tokens left");
+        // Calculate move distance (action tokens required)
+        let move_distance = self.calculate_move_distance(mov.from, mov.to);
+        
+        // Check if unit has enough action tokens
+        if let Some(unit) = self.board.pieces.get(&mov.from) {
+            if unit.action_tokens_left < move_distance {
+                anyhow::bail!("Unit needs {} action tokens but only has {}", move_distance, unit.action_tokens_left);
+            }
+        } else {
+            anyhow::bail!("No unit at source position");
+        }
+
+        // Consume the required action tokens
+        for _ in 0..move_distance {
+            if !self.use_unit_action_token(mov.from) {
+                anyhow::bail!("Failed to consume action token");
+            }
         }
 
         // Execute the move
@@ -256,7 +278,7 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::board::{Terrain, PieceType};
+    // Testing utilities no longer needed
 
     #[test]
     fn test_legal_moves_basic() {
