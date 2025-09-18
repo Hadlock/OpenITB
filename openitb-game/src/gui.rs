@@ -214,10 +214,10 @@ impl IsometricRenderer {
     pub fn render(&self, board: &Board) {
         clear_background(Color::new(0.2, 0.3, 0.2, 1.0)); // Dark green background
 
-        // Render in layers: terrain -> highlights -> pieces
+        // Render in layers: terrain -> pieces -> highlights (on top)
         self.render_terrain_layer(board);
-        self.render_highlight_layer();
         self.render_piece_layer(board);
+        self.render_highlight_layer(); // Draw highlights on top of everything
         self.render_ui_overlay(board);
     }
 
@@ -316,7 +316,7 @@ impl IsometricRenderer {
             }
         }
 
-        // Highlight legal moves
+        // Highlight legal moves with green
         for &move_pos in &self.legal_moves {
             let screen_pos = self.board_to_screen(move_pos);
             if let Some(texture) = self.tile_textures.get("green_highlight") {
@@ -324,20 +324,20 @@ impl IsometricRenderer {
                     texture,
                     screen_pos.x,
                     screen_pos.y,
-                    Color::new(0.0, 1.0, 0.0, 0.6), // Semi-transparent green
+                    Color::new(0.0, 1.0, 0.0, 0.9), // Bright green, more opaque
                     DrawTextureParams {
                         dest_size: Some(Vec2::new(self.tile_width, self.tile_height)),
                         ..Default::default()
                     },
                 );
             } else {
-                // Fallback: green rectangle
+                // Fallback: bright green rectangle
                 draw_rectangle(
                     screen_pos.x,
                     screen_pos.y,
                     self.tile_width,
                     self.tile_height,
-                    Color::new(0.0, 1.0, 0.0, 0.4),
+                    Color::new(0.0, 1.0, 0.0, 0.7), // Bright green
                 );
             }
         }
