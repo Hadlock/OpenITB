@@ -21,6 +21,7 @@ pub struct GameManager {
     /// Whether we're in TUI debug mode
     debug_mode: bool,
     /// Whether to show coordinate labels on the board
+    #[allow(dead_code)]
     show_coordinates: bool,
     /// Computer animation state
     animation_timer: Option<Instant>,
@@ -32,7 +33,9 @@ pub struct GameManager {
     /// Attack animation state
     animation_attack_target: Option<Position>,
     animation_attack_positions: Vec<Position>,
+    #[allow(dead_code)]
     animation_attacker_pos: Option<Position>,
+    #[allow(dead_code)]
     animation_original_pos: Option<Position>, // For leap-back animation
     /// Pieces that have already moved this turn
     moved_pieces: std::collections::HashSet<Position>,
@@ -152,6 +155,7 @@ impl GameManager {
     }
 
     /// Toggle display of coordinate labels
+    #[allow(dead_code)]
     pub fn toggle_coordinates(&mut self) {
         self.show_coordinates = !self.show_coordinates;
     }
@@ -240,6 +244,7 @@ impl GameManager {
     }
 
     /// Check if coordinate display is enabled
+    #[allow(dead_code)]
     pub fn show_coordinates(&self) -> bool {
         self.show_coordinates
     }
