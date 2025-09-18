@@ -68,6 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             AppState::GuiMode => {
                 // Handle input
                 if is_key_pressed(KeyCode::Escape) {
+                    println!("ESC pressed - Exiting OpenITB");
                     break;
                 }
                 

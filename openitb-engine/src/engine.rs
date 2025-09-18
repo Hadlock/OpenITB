@@ -14,14 +14,18 @@ impl Engine {
     }
 
     /// Calculate all legal moves for a piece at the given position
+    /// Now considers available action tokens
     pub fn get_legal_moves(&self, pos: Position) -> Vec<Position> {
         let piece = match self.board.get_piece(pos) {
             Some(piece) => piece,
             None => return Vec::new(),
         };
 
+        // Use the unit's remaining action tokens instead of max range
+        let available_tokens = piece.action_tokens_left;
+        
         match piece.piece_type {
-            PieceType::Mech | PieceType::Leaper => self.calculate_movement_range(pos, 3),
+            PieceType::Mech | PieceType::Leaper => self.calculate_movement_range(pos, available_tokens),
         }
     }
 
