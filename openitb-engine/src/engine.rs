@@ -89,6 +89,11 @@ impl Engine {
             anyhow::bail!("Illegal move: {}", mov.to_notation());
         }
 
+        // Use an action token for the move
+        if !self.use_unit_action_token(mov.from) {
+            anyhow::bail!("Unit has no action tokens left");
+        }
+
         // Execute the move
         self.board.move_piece(mov.from, mov.to)
             .map_err(|e| anyhow::anyhow!("Move failed: {}", e))?;
@@ -106,25 +111,17 @@ impl Engine {
         &mut self.board
     }
 
-    /// Reset moves for all units of a given player
-    pub fn reset_player_moves(&mut self, player: Player) {
+    /// Reset action tokens for all units of a given player
+    pub fn reset_player_action_tokens(&mut self, player: Player) {
         for unit in self.board.pieces.values_mut() {
             if unit.player == player {
-                unit.reset_moves();
+                unit.reset_action_tokens();
             }
         }
     }
 
-    /// Reset attacks for all units of a given player
-    pub fn reset_player_attacks(&mut self, player: Player) {
-        for unit in self.board.pieces.values_mut() {
-            if unit.player == player {
-                unit.reset_attacks();
-            }
-        }
-    }
 
-    /// Reset both moves and attacks for all units of a given player
+    /// Reset action tokens for all units of a given player
     pub fn reset_player_turn(&mut self, player: Player) {
         for unit in self.board.pieces.values_mut() {
             if unit.player == player {
@@ -133,19 +130,10 @@ impl Engine {
         }
     }
 
-    /// Use a move for the unit at the given position
-    pub fn use_unit_move(&mut self, pos: Position) -> bool {
+    /// Use an action token for the unit at the given position
+    pub fn use_unit_action_token(&mut self, pos: Position) -> bool {
         if let Some(unit) = self.board.pieces.get_mut(&pos) {
-            unit.use_move()
-        } else {
-            false
-        }
-    }
-
-    /// Use an attack for the unit at the given position
-    pub fn use_unit_attack(&mut self, pos: Position) -> bool {
-        if let Some(unit) = self.board.pieces.get_mut(&pos) {
-            unit.use_attack()
+            unit.use_action_token()
         } else {
             false
         }
@@ -183,9 +171,9 @@ impl Engine {
             attacker.attack_damage
         };
 
-        // Use attacker's attack
-        if !self.use_unit_attack(attacker_pos) {
-            return Err(anyhow::anyhow!("Failed to use attack"));
+        // Use attacker's action token for the attack
+        if !self.use_unit_action_token(attacker_pos) {
+            return Err(anyhow::anyhow!("Failed to use action token for attack"));
         }
 
         // Apply damage to target

@@ -5,9 +5,11 @@ use openitb_engine::GameState;
 mod gui;
 mod tui;
 mod game_manager;
+mod egui_panels;
 
 use gui::IsometricRenderer;
 use game_manager::GameManager;
+use egui_panels::EguiPanels;
 
 /// Main application state
 enum AppState {
@@ -53,6 +55,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Loading isometric renderer...");
     let mut renderer = IsometricRenderer::new().await;
     
+    println!("Initializing egui panels...");
+    let mut egui_panels = EguiPanels::new();
+    
     let app_state = AppState::GuiMode;
     
     println!("Starting main game loop...");
@@ -70,6 +75,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if is_key_pressed(KeyCode::Space) {
                     game_manager.toggle_debug_mode();
                     println!("Debug mode: {}", if game_manager.is_debug_mode() { "ON" } else { "OFF" });
+                }
+
+                // Toggle egui panels
+                if is_key_pressed(KeyCode::Tab) {
+                    egui_panels.toggle_visibility();
                 }
 
                 // Handle mouse input for piece selection
@@ -112,6 +122,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 // Draw end turn dialog if needed
                 draw_end_turn_dialog(&mut game_manager);
+
+                // Render egui panels
+                egui_macroquad::ui(|ctx| {
+                    egui_panels.render(ctx, &game_manager);
+                });
+
+                // Draw egui
+                egui_macroquad::draw();
             }
             AppState::TuiMode => {
                 // This branch is not currently reachable at runtime

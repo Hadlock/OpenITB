@@ -260,13 +260,11 @@ pub struct Unit {
     pub powerup1: Powerup,
     pub powerup2: Powerup,
     pub powerup3: Powerup,
-    pub default_moves: u8,
-    pub moves_left: u8,
+    pub max_action_tokens: u8,
+    pub action_tokens_left: u8,
     pub max_hit_points: u8,
     pub current_hit_points: u8,
     pub attack_pattern: AttackPattern,
-    pub default_attacks: u8,
-    pub attacks_left: u8,
     pub attack_damage: u8,
     pub special_effects: Vec<SpecialEffect>,
 }
@@ -284,13 +282,11 @@ impl Unit {
             powerup1: Powerup::None,
             powerup2: Powerup::None,
             powerup3: Powerup::None,
-            default_moves: 1,
-            moves_left: 1,
+            max_action_tokens: 3, // Mechs get 3 action tokens
+            action_tokens_left: 3,
             max_hit_points: 3,
             current_hit_points: 3,
             attack_pattern: AttackPattern::LimitedRook(1), // Can attack adjacent squares in rook pattern
-            default_attacks: 1,
-            attacks_left: 1,
             attack_damage: 1,
             special_effects: Vec::new(),
         }
@@ -308,71 +304,61 @@ impl Unit {
             powerup1: Powerup::None,
             powerup2: Powerup::None,
             powerup3: Powerup::None,
-            default_moves: 1,
-            moves_left: 1,
+            max_action_tokens: 2, // Leapers get 2 action tokens
+            action_tokens_left: 2,
             max_hit_points: 2,
             current_hit_points: 2,
             attack_pattern: AttackPattern::LimitedRook(1), // Can leap to attack adjacent rook squares
-            default_attacks: 1,
-            attacks_left: 1,
             attack_damage: 1,
             special_effects: Vec::new(),
         }
     }
 
-    /// Reset moves for a new turn
-    pub fn reset_moves(&mut self) {
-        self.moves_left = self.default_moves;
+    /// Reset action tokens for a new turn
+    pub fn reset_action_tokens(&mut self) {
+        self.action_tokens_left = self.max_action_tokens;
         
         // Apply powerup effects
         if self.powerup1 == Powerup::ExtraMove || 
            self.powerup2 == Powerup::ExtraMove || 
            self.powerup3 == Powerup::ExtraMove {
-            self.moves_left += 1;
+            self.action_tokens_left += 1;
         }
     }
 
-    /// Reset attacks for a new turn
-    pub fn reset_attacks(&mut self) {
-        self.attacks_left = self.default_attacks;
-    }
 
-    /// Reset both moves and attacks for a new turn
+    /// Reset action tokens for a new turn
     pub fn reset_turn(&mut self) {
-        self.reset_moves();
-        self.reset_attacks();
+        self.reset_action_tokens();
     }
 
-    /// Use one move
-    pub fn use_move(&mut self) -> bool {
-        if self.moves_left > 0 {
-            self.moves_left -= 1;
+    /// Use one action token for movement or attack
+    pub fn use_action_token(&mut self) -> bool {
+        if self.action_tokens_left > 0 {
+            self.action_tokens_left -= 1;
             true
         } else {
             false
         }
     }
 
-    /// Use one attack
-    pub fn use_attack(&mut self) -> bool {
-        if self.attacks_left > 0 {
-            self.attacks_left -= 1;
-            true
-        } else {
-            false
-        }
-    }
-
-    /// Check if unit can still move
-    pub fn can_move(&self) -> bool {
-        self.moves_left > 0 && 
+    /// Check if unit can perform any action (move or attack)
+    pub fn can_act(&mut self) -> bool {
+        self.action_tokens_left > 0 && 
         !self.special_effects.contains(&SpecialEffect::Stunned) &&
         !self.special_effects.contains(&SpecialEffect::Frozen)
     }
 
-    /// Check if unit can still attack
+    /// Check if unit can still move (legacy method for compatibility)
+    pub fn can_move(&self) -> bool {
+        self.action_tokens_left > 0 && 
+        !self.special_effects.contains(&SpecialEffect::Stunned) &&
+        !self.special_effects.contains(&SpecialEffect::Frozen)
+    }
+
+    /// Check if unit can still attack (legacy method for compatibility)
     pub fn can_attack(&self) -> bool {
-        self.attacks_left > 0 &&
+        self.action_tokens_left > 0 &&
         !self.special_effects.contains(&SpecialEffect::Stunned) &&
         !self.special_effects.contains(&SpecialEffect::Frozen)
     }

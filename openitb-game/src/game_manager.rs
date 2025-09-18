@@ -113,6 +113,11 @@ impl GameManager {
         self.engine.get_board()
     }
 
+    /// Get engine reference for advanced operations
+    pub fn get_engine(&self) -> &Engine {
+        &self.engine
+    }
+
     /// Get current game state
     pub fn get_game_state(&self) -> GameState {
         self.game_state
@@ -184,7 +189,7 @@ impl GameManager {
         let player_pieces = self.engine.get_player_pieces(Player::Human);
         
         for (pos, unit) in player_pieces {
-            if unit.can_move() && unit.moves_left > 0 {
+            if unit.can_move() && unit.action_tokens_left > 0 {
                 let legal_moves = self.engine.get_legal_moves(pos);
                 if !legal_moves.is_empty() {
                     return true;
@@ -206,12 +211,12 @@ impl GameManager {
     fn all_player_pieces_moved(&self) -> bool {
         let player_pieces = self.engine.get_player_pieces(Player::Human);
         
-        // Check if all player pieces have either used all moves or have no legal moves
+        // Check if all player pieces have either used all action tokens or have no legal moves
         for (pos, unit) in player_pieces {
-            if unit.can_move() && unit.moves_left > 0 {
+            if unit.can_move() && unit.action_tokens_left > 0 {
                 let legal_moves = self.engine.get_legal_moves(pos);
                 if !legal_moves.is_empty() {
-                    // This unit hasn't used all moves and has legal moves available
+                    // This unit hasn't used all action tokens and has legal moves available
                     return false;
                 }
             }
@@ -222,7 +227,7 @@ impl GameManager {
     /// Reset all player units for a new turn
     fn start_new_player_turn(&mut self) {
         // Reset moves for all player units
-        self.engine.reset_player_moves(Player::Human);
+        self.engine.reset_player_turn(Player::Human);
         self.moved_pieces.clear();
     }
 
@@ -290,14 +295,9 @@ impl GameManager {
 
     /// Make a move and update game state
     fn make_move(&mut self, from: Position, to: Position) -> Result<()> {
-        // Check if unit can still move
-        if !self.engine.use_unit_move(from) {
-            return Err(anyhow::anyhow!("Unit has no moves left"));
-        }
-
         let mov = Move::new(from, to);
         
-        // Execute the move through the engine
+        // Execute the move through the engine (this will use an action token)
         self.engine.make_move(mov)?;
         
         println!("Move executed: {} -> {}", from.to_chess_notation(), to.to_chess_notation());
@@ -321,7 +321,7 @@ impl GameManager {
             // Player still has pieces to move
             let remaining_moves: usize = self.engine.get_player_pieces(Player::Human)
                 .iter()
-                .map(|(_, unit)| unit.moves_left as usize)
+                .map(|(_, unit)| unit.action_tokens_left as usize)
                 .sum();
             println!("Player turn continues - {} moves remaining", remaining_moves);
         }
@@ -455,7 +455,7 @@ impl GameManager {
                     
                     for pos in player_positions {
                         if let Some(unit) = self.engine.get_unit(pos) {
-                            if unit.attacks_left > 0 {
+                            if unit.action_tokens_left > 0 {
                                 let attack_targets = self.engine.get_attack_targets(pos);
                                 if !attack_targets.is_empty() {
                                     // Found an attack opportunity
