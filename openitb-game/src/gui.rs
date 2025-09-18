@@ -24,19 +24,19 @@ impl IsometricRenderer {
         let mut tile_textures = HashMap::new();
         let scale = 1.0;
 
-        // Load tile textures - using the mapping from CLAUDE.md
+        // Load tile textures - fallback to PNG if GIF not supported
         let texture_map = [
-            ("ground", "assets/tiles/ground.gif"),
+            ("ground", "assets/tiles/ground.png"),
             ("double", "assets/tiles/double.png"),
             ("trees", "assets/tiles/trees.png"),
             ("mountain", "assets/tiles/mountain.png"),
             ("water", "assets/tiles/water.png"),
             ("mech", "assets/tiles/mech.png"),
             ("leaper", "assets/tiles/leaper.png"),
-            ("black_tile", "assets/tiles/black_tile.gif"),
-            ("white_tile", "assets/tiles/white_tile.gif"),
-            ("green_highlight", "assets/tiles/green_highlight.gif"),
-            ("yellow_cursor", "assets/tiles/yellow_cursor.gif"),
+            ("black_tile", "assets/tiles/black_tile.png"),
+            ("white_tile", "assets/tiles/white_tile.png"),
+            ("green_highlight", "assets/tiles/green_highlight.png"),
+            ("yellow_cursor", "assets/tiles/yellow_cursor.png"),
         ];
 
         for (name, path) in texture_map {
@@ -49,8 +49,26 @@ impl IsometricRenderer {
                 }
                 Err(e) => {
                     println!("Failed to load texture {}: {:?}", path, e);
-                    // Create a fallback colored rectangle
-                    let fallback_texture = Texture2D::from_rgba8(120, 60, &[255, 0, 255, 255].repeat(120 * 60));
+                    // Create a fallback colored texture based on tile type
+                    let color = match name {
+                        "ground" => [34, 139, 34, 255],    // Forest green
+                        "double" => [128, 128, 128, 255],  // Gray
+                        "trees" => [0, 100, 0, 255],       // Dark green
+                        "mountain" => [139, 69, 19, 255],  // Brown
+                        "water" => [0, 0, 255, 255],       // Blue
+                        "mech" => [0, 191, 255, 255],      // Deep sky blue
+                        "leaper" => [255, 69, 0, 255],     // Red orange
+                        "green_highlight" => [0, 255, 0, 100], // Semi-transparent green
+                        "yellow_cursor" => [255, 255, 0, 150], // Semi-transparent yellow
+                        _ => [255, 0, 255, 255],           // Magenta fallback
+                    };
+                    let texture_data = vec![color; 120 * 60]; // 120x60 pixels
+                    let mut texture_bytes = Vec::with_capacity(120 * 60 * 4);
+                    for pixel in texture_data {
+                        texture_bytes.extend_from_slice(&pixel);
+                    }
+                    let fallback_texture = Texture2D::from_rgba8(120, 60, &texture_bytes);
+                    fallback_texture.set_filter(FilterMode::Nearest);
                     tile_textures.insert(name.to_string(), fallback_texture);
                 }
             }
