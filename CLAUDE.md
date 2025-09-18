@@ -50,3 +50,7 @@ as a simple MVP or POC it should contain all three of the above. inside of the m
 after all of the mechs have moved, then it is the computer's turn, it will move each of the H or leaper.png up to three spaces with the same move rules. when all three leapers are done moving, it goes back to the player's turn and wait for them to manipulate the mechs with the mouse. this logic should be implemented using state machines, with lots of comments explaining what each part is doing.
 
 The board is meant to loosely represent a chessboard, it is 8x8 and uses the same notation (internally) 12345678 abcdefgh so let's be cognizant of that. it also uses a UCI type interface with the engine when talking with the main game and ENGINE module. from that perspective programmers knowledgable about how chess programming works should immediatley understand the architecture.
+
+after enough progress has been made, commit your progress as you go
+
+You may need to write early automation to simulate mouse click/drag and screenshot capability to review your progress.
