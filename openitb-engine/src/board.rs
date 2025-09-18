@@ -120,31 +120,33 @@ impl Board {
                     break;
                 }
                 
-                let pos = Position::new(col as u8, 7 - row as u8).unwrap(); // Flip Y for proper board orientation
+                // Direct mapping: row 0 of string -> rank 7, row 7 of string -> rank 0
+                // col 0 of string -> file 0, col 7 of string -> file 7
+                let pos = Position::new(col as u8, (7 - row) as u8).unwrap();
                 
                 match cell {
-                    "G" => terrain[7 - row][col] = Terrain::Grass,
-                    "S" => terrain[7 - row][col] = Terrain::SingleBuilding,
-                    "D" => terrain[7 - row][col] = Terrain::DoubleBuilding,
-                    "T" => terrain[7 - row][col] = Terrain::Forest,
-                    "M" => terrain[7 - row][col] = Terrain::Mountain,
-                    "W" => terrain[7 - row][col] = Terrain::Water,
-                    "I" => terrain[7 - row][col] = Terrain::MonsterIngress,
+                    "G" => terrain[row][col] = Terrain::Grass,
+                    "S" => terrain[row][col] = Terrain::SingleBuilding,
+                    "D" => terrain[row][col] = Terrain::DoubleBuilding,
+                    "T" => terrain[row][col] = Terrain::Forest,
+                    "M" => terrain[row][col] = Terrain::Mountain,
+                    "W" => terrain[row][col] = Terrain::Water,
+                    "I" => terrain[row][col] = Terrain::MonsterIngress,
                     "P" => {
-                        terrain[7 - row][col] = Terrain::Grass;
+                        terrain[row][col] = Terrain::Grass;
                         pieces.insert(pos, Piece {
                             piece_type: PieceType::Mech,
                             player: Player::Human,
                         });
                     },
                     "H" => {
-                        terrain[7 - row][col] = Terrain::Grass;
+                        terrain[row][col] = Terrain::Grass;
                         pieces.insert(pos, Piece {
                             piece_type: PieceType::Leaper,
                             player: Player::Computer,
                         });
                     },
-                    _ => terrain[7 - row][col] = Terrain::Grass,
+                    _ => terrain[row][col] = Terrain::Grass,
                 }
             }
         }
@@ -158,7 +160,11 @@ impl Board {
 
     /// Get terrain at position
     pub fn get_terrain(&self, pos: Position) -> Terrain {
-        self.terrain[pos.rank as usize][pos.file as usize]
+        // Convert chess position to array indices
+        // rank 7 (8th rank) -> row 0, rank 0 (1st rank) -> row 7
+        let row = (7 - pos.rank) as usize;
+        let col = pos.file as usize;
+        self.terrain[row][col]
     }
 
     /// Get piece at position

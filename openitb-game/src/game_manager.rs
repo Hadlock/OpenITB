@@ -19,15 +19,15 @@ pub struct GameManager {
 impl GameManager {
     /// Create new game manager with the test map
     pub fn new() -> Self {
-        // Use the test map from CLAUDE.md
-        let test_map = "G S S S S G G T\n\
-                        G G G G G G T T\n\
-                        M G G G G G D D\n\
-                        M T G G W G D M\n\
-                        T G G G G G G M\n\
-                        T G W G I T G M\n\
-                        G G G G W G G M\n\
-                        G T G G G I G T";
+        // Use the test map from CLAUDE.md (rotated 90° clockwise + horizontal flip for correct orientation)
+        let test_map = "G G M M T T G G\n\
+                        S G G T G G G T\n\
+                        S G G G G W G G\n\
+                        S G G G G G G G\n\
+                        S G G W G I W G\n\
+                        G G G G G T G I\n\
+                        G T D D G G G G\n\
+                        T T D M M M M T";
 
         let mut board = Board::from_map_string(test_map);
         

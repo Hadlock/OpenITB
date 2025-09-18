@@ -102,18 +102,18 @@ impl IsometricRenderer {
 
     /// Convert board coordinates to screen position (isometric projection)
     fn board_to_screen(&self, pos: Position) -> Vec2 {
-        // Isometric projection: 
-        // x_screen = (board_x - board_y) * tile_width/2
-        // y_screen = (board_x + board_y) * tile_height/2
+        // Standard isometric projection for a diamond-shaped board
+        // For proper orientation to match the expected output:
         let board_x = pos.file as f32;
         let board_y = pos.rank as f32;
         
+        // Isometric transformation: diamond pattern
         let screen_x = (board_x - board_y) * self.tile_width * 0.5;
         let screen_y = (board_x + board_y) * self.tile_height * 0.5;
         
         Vec2::new(
-            self.board_offset.x + screen_x + self.tile_width * 4.0, // Center offset
-            self.board_offset.y + screen_y + self.tile_height * 2.0,
+            self.board_offset.x + screen_x + self.tile_width * 4.0, // Center horizontally
+            self.board_offset.y + screen_y + self.tile_height,      // Center vertically
         )
     }
 
@@ -121,7 +121,7 @@ impl IsometricRenderer {
     fn screen_to_board(&self, screen_pos: Vec2) -> Option<Position> {
         // Inverse isometric transformation
         let relative_x = screen_pos.x - self.board_offset.x - self.tile_width * 4.0;
-        let relative_y = screen_pos.y - self.board_offset.y - self.tile_height * 2.0;
+        let relative_y = screen_pos.y - self.board_offset.y - self.tile_height;
         
         let board_x = (relative_x / (self.tile_width * 0.5) + relative_y / (self.tile_height * 0.5)) * 0.5;
         let board_y = (relative_y / (self.tile_height * 0.5) - relative_x / (self.tile_width * 0.5)) * 0.5;
