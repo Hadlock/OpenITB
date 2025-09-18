@@ -15,6 +15,7 @@ anyhow = { workspace = true }
 thiserror = { workspace = true }
 glam = { workspace = true }
 image = { workspace = true }
+egui-macroquad = "0.17"
 
 # Local dependencies
 openitb-engine = { path = "../openitb-engine" }

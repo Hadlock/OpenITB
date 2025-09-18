@@ -68,17 +68,139 @@ impl Terrain {
     }
 }
 
-/// Game pieces
+/// Game pieces - basic unit types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PieceType {
     Mech,   // P - player controlled
     Leaper, // H - enemy
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Piece {
+/// Weapon types
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Weapon {
+    None,
+    PulseCannon,
+    RocketLauncher,
+    FlameCanon,
+    LaserRifle,
+    MissilePod,
+    // Add more weapons as needed
+}
+
+/// Powerup types
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Powerup {
+    None,
+    ShieldGenerator,
+    ExtraMove,
+    DamageBoost,
+    RangeExtender,
+    // Add more powerups as needed
+}
+
+/// Special effects that can affect units
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SpecialEffect {
+    Poisoned,
+    Stunned,
+    Burning,
+    Frozen,
+    // Add more effects as needed
+}
+
+/// Complete unit definition with all attributes
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Unit {
     pub piece_type: PieceType,
     pub player: Player,
+    pub pilot_name: String,
+    pub primary_weapon: Weapon,
+    pub secondary_weapon: Weapon,
+    pub special_weapon: Weapon,
+    pub powerup1: Powerup,
+    pub powerup2: Powerup,
+    pub powerup3: Powerup,
+    pub default_moves: u8,
+    pub moves_left: u8,
+    pub max_hit_points: u8,
+    pub current_hit_points: u8,
+    pub special_effects: Vec<SpecialEffect>,
+}
+
+impl Unit {
+    /// Create a new mech unit with default values
+    pub fn new_mech(pilot_name: String) -> Self {
+        Self {
+            piece_type: PieceType::Mech,
+            player: Player::Human,
+            pilot_name,
+            primary_weapon: Weapon::PulseCannon,
+            secondary_weapon: Weapon::None,
+            special_weapon: Weapon::None,
+            powerup1: Powerup::None,
+            powerup2: Powerup::None,
+            powerup3: Powerup::None,
+            default_moves: 1,
+            moves_left: 1,
+            max_hit_points: 3,
+            current_hit_points: 3,
+            special_effects: Vec::new(),
+        }
+    }
+
+    /// Create a new leaper unit with default values
+    pub fn new_leaper(pilot_name: String) -> Self {
+        Self {
+            piece_type: PieceType::Leaper,
+            player: Player::Computer,
+            pilot_name,
+            primary_weapon: Weapon::LaserRifle,
+            secondary_weapon: Weapon::None,
+            special_weapon: Weapon::None,
+            powerup1: Powerup::None,
+            powerup2: Powerup::None,
+            powerup3: Powerup::None,
+            default_moves: 1,
+            moves_left: 1,
+            max_hit_points: 2,
+            current_hit_points: 2,
+            special_effects: Vec::new(),
+        }
+    }
+
+    /// Reset moves for a new turn
+    pub fn reset_moves(&mut self) {
+        self.moves_left = self.default_moves;
+        
+        // Apply powerup effects
+        if self.powerup1 == Powerup::ExtraMove || 
+           self.powerup2 == Powerup::ExtraMove || 
+           self.powerup3 == Powerup::ExtraMove {
+            self.moves_left += 1;
+        }
+    }
+
+    /// Use one move
+    pub fn use_move(&mut self) -> bool {
+        if self.moves_left > 0 {
+            self.moves_left -= 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Check if unit can still move
+    pub fn can_move(&self) -> bool {
+        self.moves_left > 0 && 
+        !self.special_effects.contains(&SpecialEffect::Stunned) &&
+        !self.special_effects.contains(&SpecialEffect::Frozen)
+    }
+
+    /// Check if unit is alive
+    pub fn is_alive(&self) -> bool {
+        self.current_hit_points > 0
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -92,8 +214,8 @@ pub enum Player {
 pub struct Board {
     /// Terrain layer - the base map
     pub terrain: [[Terrain; 8]; 8],
-    /// Pieces layer - current piece positions
-    pub pieces: HashMap<Position, Piece>,
+    /// Units layer - current unit positions
+    pub pieces: HashMap<Position, Unit>,
     /// Effects layer - temporary effects like poison gas
     pub effects: HashMap<Position, Vec<Effect>>,
 }
@@ -134,17 +256,11 @@ impl Board {
                     "I" => terrain[row][col] = Terrain::MonsterIngress,
                     "P" => {
                         terrain[row][col] = Terrain::Grass;
-                        pieces.insert(pos, Piece {
-                            piece_type: PieceType::Mech,
-                            player: Player::Human,
-                        });
+                        pieces.insert(pos, Unit::new_mech(format!("Pilot-{}", pos.to_chess_notation())));
                     },
                     "H" => {
                         terrain[row][col] = Terrain::Grass;
-                        pieces.insert(pos, Piece {
-                            piece_type: PieceType::Leaper,
-                            player: Player::Computer,
-                        });
+                        pieces.insert(pos, Unit::new_leaper(format!("Enemy-{}", pos.to_chess_notation())));
                     },
                     _ => terrain[row][col] = Terrain::Grass,
                 }
@@ -167,8 +283,13 @@ impl Board {
         self.terrain[row][col]
     }
 
-    /// Get piece at position
-    pub fn get_piece(&self, pos: Position) -> Option<&Piece> {
+    /// Get unit at position
+    pub fn get_piece(&self, pos: Position) -> Option<&Unit> {
+        self.pieces.get(&pos)
+    }
+
+    /// Get unit at position (alias for consistency)
+    pub fn get_unit(&self, pos: Position) -> Option<&Unit> {
         self.pieces.get(&pos)
     }
 

@@ -1,5 +1,5 @@
 use macroquad::prelude::*;
-use openitb_engine::{Board, Position, PieceType, Player, Terrain};
+use openitb_engine::{Board, Position, PieceType, Player, Terrain, Unit};
 use std::collections::HashMap;
 
 /// Isometric tile renderer for the game

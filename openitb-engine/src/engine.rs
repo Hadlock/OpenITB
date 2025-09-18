@@ -1,4 +1,4 @@
-use crate::board::{Board, Move, Position, Player, PieceType, Piece};
+use crate::board::{Board, Move, Position, Player, PieceType, Unit};
 use anyhow::Result;
 use std::collections::HashSet;
 
@@ -101,13 +101,36 @@ impl Engine {
         &self.board
     }
 
+    /// Get mutable board reference
+    pub fn get_board_mut(&mut self) -> &mut Board {
+        &mut self.board
+    }
+
+    /// Reset moves for all units of a given player
+    pub fn reset_player_moves(&mut self, player: Player) {
+        for unit in self.board.pieces.values_mut() {
+            if unit.player == player {
+                unit.reset_moves();
+            }
+        }
+    }
+
+    /// Use a move for the unit at the given position
+    pub fn use_unit_move(&mut self, pos: Position) -> bool {
+        if let Some(unit) = self.board.pieces.get_mut(&pos) {
+            unit.use_move()
+        } else {
+            false
+        }
+    }
+
     /// Get all pieces for a given player
-    pub fn get_player_pieces(&self, player: Player) -> Vec<(Position, Piece)> {
+    pub fn get_player_pieces(&self, player: Player) -> Vec<(Position, Unit)> {
         self.board
             .pieces
             .iter()
-            .filter(|(_, piece)| piece.player == player)
-            .map(|(&pos, &piece)| (pos, piece))
+            .filter(|(_, unit)| unit.player == player)
+            .map(|(&pos, unit)| (pos, unit.clone()))
             .collect()
     }
 

@@ -1,4 +1,5 @@
 use macroquad::prelude::*;
+use egui_macroquad;
 use openitb_engine::GameState;
 
 mod gui;
@@ -106,6 +107,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if game_manager.is_debug_mode() {
                     draw_debug_overlay(&game_manager);
                 }
+
+                // Draw end turn dialog if needed
+                draw_end_turn_dialog(&mut game_manager);
             }
             AppState::TuiMode => {
                 // This branch is not currently reachable at runtime
@@ -202,5 +206,42 @@ fn draw_debug_overlay(game_manager: &GameManager) {
     y += line_height;
     draw_text("Space: Toggle debug overlay", 10.0, y, 12.0, LIGHTGRAY);
     y += line_height;
+    y += line_height;
     draw_text("ESC: Quit", 10.0, y, 12.0, LIGHTGRAY);
+}
+
+/// Draw end turn dialog when player has no legal moves
+fn draw_end_turn_dialog(game_manager: &mut GameManager) {
+    use egui_macroquad::egui;
+
+    // Only show dialog during player turn when no legal moves remain
+    if game_manager.get_game_state() == GameState::PlayerTurn && !game_manager.player_has_legal_moves() {
+        egui_macroquad::ui(|egui_ctx| {
+            egui::Window::new("No Legal Moves")
+                .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+                .resizable(false)
+                .show(egui_ctx, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(10.0);
+                        ui.label("No legal moves remain for your units.");
+                        ui.add_space(10.0);
+                        ui.label("End your turn?");
+                        ui.add_space(15.0);
+                        
+                        ui.horizontal(|ui| {
+                            if ui.button("Yes").clicked() {
+                                game_manager.end_player_turn();
+                            }
+                            ui.add_space(20.0);
+                            if ui.button("No").clicked() {
+                                // Just close dialog, let player continue looking
+                            }
+                        });
+                        ui.add_space(10.0);
+                    });
+                });
+        });
+        
+        egui_macroquad::draw();
+    }
 }

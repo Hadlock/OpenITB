@@ -1,6 +1,7 @@
-use openitb_engine::{Engine, Board, GameState, Player, Position, Move};
+use openitb_engine::{Engine, Board, GameState, Player, Position, Move, Unit};
 use anyhow::Result;
 use std::time::Instant;
+use std::collections::HashSet;
 
 /// Main game state manager that orchestrates between GUI, TUI, and Engine
 /// Implements state machine pattern for turn management
@@ -26,6 +27,8 @@ pub struct GameManager {
     current_animation_move: usize,
     animation_selected_piece: Option<Position>,
     animation_legal_moves: Vec<Position>,
+    /// Pieces that have already moved this turn
+    moved_pieces: std::collections::HashSet<Position>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -56,30 +59,18 @@ impl GameManager {
         // Add some test pieces to make it interesting
         // Add a few mechs for the player
         if let Some(pos) = Position::from_chess_notation("b2") {
-            board.pieces.insert(pos, openitb_engine::Piece {
-                piece_type: openitb_engine::PieceType::Mech,
-                player: Player::Human,
-            });
+            board.pieces.insert(pos, Unit::new_mech("Abe Lincoln".to_string()));
         }
         if let Some(pos) = Position::from_chess_notation("c3") {
-            board.pieces.insert(pos, openitb_engine::Piece {
-                piece_type: openitb_engine::PieceType::Mech,
-                player: Player::Human,
-            });
+            board.pieces.insert(pos, Unit::new_mech("George Washington".to_string()));
         }
 
         // Add some leapers for the computer
         if let Some(pos) = Position::from_chess_notation("f6") {
-            board.pieces.insert(pos, openitb_engine::Piece {
-                piece_type: openitb_engine::PieceType::Leaper,
-                player: Player::Computer,
-            });
+            board.pieces.insert(pos, Unit::new_leaper("Alpha-7".to_string()));
         }
         if let Some(pos) = Position::from_chess_notation("h7") {
-            board.pieces.insert(pos, openitb_engine::Piece {
-                piece_type: openitb_engine::PieceType::Leaper,
-                player: Player::Computer,
-            });
+            board.pieces.insert(pos, Unit::new_leaper("Beta-3".to_string()));
         }
 
         let engine = Engine::new(board);
@@ -98,6 +89,7 @@ impl GameManager {
             current_animation_move: 0,
             animation_selected_piece: None,
             animation_legal_moves: Vec::new(),
+            moved_pieces: HashSet::new(),
         }
     }
 
@@ -152,6 +144,53 @@ impl GameManager {
         } else {
             Vec::new()
         }
+    }
+
+    /// Check if player has any legal moves remaining
+    pub fn player_has_legal_moves(&self) -> bool {
+        let player_pieces = self.engine.get_player_pieces(Player::Human);
+        
+        for (pos, unit) in player_pieces {
+            if unit.can_move() && unit.moves_left > 0 {
+                let legal_moves = self.engine.get_legal_moves(pos);
+                if !legal_moves.is_empty() {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    /// Force end player turn (for "End Turn" button)
+    pub fn end_player_turn(&mut self) {
+        if self.game_state == GameState::PlayerTurn {
+            self.game_state = GameState::ComputerTurn;
+            println!("Player manually ended turn");
+        }
+    }
+
+    /// Check if all player pieces have moved this turn
+    fn all_player_pieces_moved(&self) -> bool {
+        let player_pieces = self.engine.get_player_pieces(Player::Human);
+        
+        // Check if all player pieces have either used all moves or have no legal moves
+        for (pos, unit) in player_pieces {
+            if unit.can_move() && unit.moves_left > 0 {
+                let legal_moves = self.engine.get_legal_moves(pos);
+                if !legal_moves.is_empty() {
+                    // This unit hasn't used all moves and has legal moves available
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
+    /// Reset all player units for a new turn
+    fn start_new_player_turn(&mut self) {
+        // Reset moves for all player units
+        self.engine.reset_player_moves(Player::Human);
+        self.moved_pieces.clear();
     }
 
     /// Check if coordinate display is enabled
@@ -218,12 +257,20 @@ impl GameManager {
 
     /// Make a move and update game state
     fn make_move(&mut self, from: Position, to: Position) -> Result<()> {
+        // Check if unit can still move
+        if !self.engine.use_unit_move(from) {
+            return Err(anyhow::anyhow!("Unit has no moves left"));
+        }
+
         let mov = Move::new(from, to);
         
         // Execute the move through the engine
         self.engine.make_move(mov)?;
         
         println!("Move executed: {} -> {}", from.to_chess_notation(), to.to_chess_notation());
+        
+        // Track that this piece has moved (for legacy tracking)
+        self.moved_pieces.insert(from);
         
         // Clear selection
         self.selected_piece = None;
@@ -233,10 +280,17 @@ impl GameManager {
         if self.engine.is_game_over() {
             self.game_state = GameState::GameOver;
             println!("Game Over!");
-        } else {
-            // Switch to computer turn
+        } else if self.all_player_pieces_moved() {
+            // All player pieces have moved, switch to computer turn
             self.game_state = GameState::ComputerTurn;
-            println!("Switching to computer turn");
+            println!("All player pieces moved, switching to computer turn");
+        } else {
+            // Player still has pieces to move
+            let remaining_moves: usize = self.engine.get_player_pieces(Player::Human)
+                .iter()
+                .map(|(_, unit)| unit.moves_left as usize)
+                .sum();
+            println!("Player turn continues - {} moves remaining", remaining_moves);
         }
         
         Ok(())
@@ -400,8 +454,9 @@ impl GameManager {
             self.game_state = GameState::GameOver;
             println!("Game Over!");
         } else {
+            self.start_new_player_turn(); // Reset moved pieces for new player turn
             self.game_state = GameState::PlayerTurn;
-            println!("Switching to player turn");
+            println!("Switching to player turn - new turn started");
         }
     }
 
