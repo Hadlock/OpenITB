@@ -164,8 +164,10 @@ impl IsometricRenderer {
     }
 
     fn render_terrain_layer(&self, board: &Board) {
-        for rank in 0..8 {
-            for file in 0..8 {
+        // Render from back to front for proper isometric depth sorting
+        // Back = high rank + high file, Front = low rank + low file
+        for rank in (0..8).rev() {
+            for file in (0..8).rev() {
                 let pos = Position::new(file, rank).unwrap();
                 let screen_pos = self.board_to_screen(pos);
                 let terrain = board.get_terrain(pos);
@@ -195,15 +197,25 @@ impl IsometricRenderer {
                         },
                     );
                 } else {
-                    // Fallback: draw colored rectangle
-                    let color = match terrain {
-                        Terrain::Grass => GREEN,
-                        Terrain::Forest => DARKGREEN,
-                        Terrain::Mountain => BROWN,
-                        Terrain::Water => BLUE,
-                        _ => GRAY,
-                    };
-                    draw_rectangle(screen_pos.x, screen_pos.y, self.tile_width, self.tile_height, color);
+                    // Only draw fallback rectangles for non-grass terrain
+                    // Grass is the base layer and shouldn't cover other terrain
+                    match terrain {
+                        Terrain::Grass => {
+                            // Don't draw anything for grass - let the background show through
+                        }
+                        Terrain::Forest => {
+                            draw_rectangle(screen_pos.x, screen_pos.y, self.tile_width, self.tile_height, DARKGREEN);
+                        }
+                        Terrain::Mountain => {
+                            draw_rectangle(screen_pos.x, screen_pos.y, self.tile_width, self.tile_height, BROWN);
+                        }
+                        Terrain::Water => {
+                            draw_rectangle(screen_pos.x, screen_pos.y, self.tile_width, self.tile_height, BLUE);
+                        }
+                        _ => {
+                            draw_rectangle(screen_pos.x, screen_pos.y, self.tile_width, self.tile_height, GRAY);
+                        }
+                    }
                 }
 
                 // Special terrain indicators
@@ -274,45 +286,51 @@ impl IsometricRenderer {
     }
 
     fn render_piece_layer(&self, board: &Board) {
-        for (&pos, piece) in &board.pieces {
-            let screen_pos = self.board_to_screen(pos);
-            
-            let texture_name = match piece.piece_type {
-                PieceType::Mech => "mech",
-                PieceType::Leaper => "leaper",
-            };
+        // Render pieces from back to front for proper depth sorting
+        for rank in (0..8).rev() {
+            for file in (0..8).rev() {
+                let pos = Position::new(file, rank).unwrap();
+                if let Some(piece) = board.get_piece(pos) {
+                    let screen_pos = self.board_to_screen(pos);
+                    
+                    let texture_name = match piece.piece_type {
+                        PieceType::Mech => "mech",
+                        PieceType::Leaper => "leaper",
+                    };
 
-            // Color based on player
-            let tint = match piece.player {
-                Player::Human => Color::new(0.7, 0.7, 1.0, 1.0),    // Light blue tint for human
-                Player::Computer => Color::new(1.0, 0.7, 0.7, 1.0), // Light red tint for computer
-            };
+                    // Color based on player
+                    let tint = match piece.player {
+                        Player::Human => Color::new(0.7, 0.7, 1.0, 1.0),    // Light blue tint for human
+                        Player::Computer => Color::new(1.0, 0.7, 0.7, 1.0), // Light red tint for computer
+                    };
 
-            if let Some(texture) = self.tile_textures.get(texture_name) {
-                draw_texture_ex(
-                    texture,
-                    screen_pos.x,
-                    screen_pos.y,
-                    tint,
-                    DrawTextureParams {
-                        dest_size: Some(Vec2::new(self.tile_width, self.tile_height)),
-                        ..Default::default()
-                    },
-                );
-            } else {
-                // Fallback: colored circle
-                let color = match (piece.piece_type, piece.player) {
-                    (PieceType::Mech, Player::Human) => BLUE,
-                    (PieceType::Mech, Player::Computer) => RED,
-                    (PieceType::Leaper, Player::Human) => SKYBLUE,
-                    (PieceType::Leaper, Player::Computer) => PINK,
-                };
-                draw_circle(
-                    screen_pos.x + self.tile_width * 0.5,
-                    screen_pos.y + self.tile_height * 0.5,
-                    15.0,
-                    color,
-                );
+                    if let Some(texture) = self.tile_textures.get(texture_name) {
+                        draw_texture_ex(
+                            texture,
+                            screen_pos.x,
+                            screen_pos.y,
+                            tint,
+                            DrawTextureParams {
+                                dest_size: Some(Vec2::new(self.tile_width, self.tile_height)),
+                                ..Default::default()
+                            },
+                        );
+                    } else {
+                        // Fallback: colored circle
+                        let color = match (piece.piece_type, piece.player) {
+                            (PieceType::Mech, Player::Human) => BLUE,
+                            (PieceType::Mech, Player::Computer) => RED,
+                            (PieceType::Leaper, Player::Human) => SKYBLUE,
+                            (PieceType::Leaper, Player::Computer) => PINK,
+                        };
+                        draw_circle(
+                            screen_pos.x + self.tile_width * 0.5,
+                            screen_pos.y + self.tile_height * 0.5,
+                            15.0,
+                            color,
+                        );
+                    }
+                }
             }
         }
     }
