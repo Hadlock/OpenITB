@@ -1,5 +1,5 @@
 use macroquad::prelude::*;
-use openitb_engine::{Board, Position, Player, PieceType, Terrain};
+use openitb_engine::{Board, Position, PieceType, Player, Terrain};
 use std::collections::HashMap;
 
 /// Isometric tile renderer for the game
@@ -17,6 +17,10 @@ pub struct IsometricRenderer {
     legal_moves: Vec<Position>,
     /// Current cursor position (last clicked tile)
     cursor_position: Option<Position>,
+    /// Animation selected piece (for red highlight)
+    animation_selected_piece: Option<Position>,
+    /// Animation legal moves (for purple highlights)
+    animation_legal_moves: Vec<Position>,
     /// Scale factor for rendering
     scale: f32,
 }
@@ -38,6 +42,8 @@ impl IsometricRenderer {
             ("black_tile", "assets/tiles/black_tile.png"),
             ("white_tile", "assets/tiles/white_tile.png"),
             ("green_highlight", "assets/tiles/green_highlight.png"),
+            ("red_highlight", "assets/tiles/red_highlight.png"),
+            ("purple_highlight", "assets/tiles/purple_highlight.png"),
             ("yellow_cursor", "assets/tiles/yellow_cursor.png"),
         ];
 
@@ -61,6 +67,8 @@ impl IsometricRenderer {
                         "mech" => [0, 191, 255, 255],      // Deep sky blue
                         "leaper" => [255, 69, 0, 255],     // Red orange
                         "green_highlight" => [0, 255, 0, 100], // Semi-transparent green
+                        "red_highlight" => [255, 0, 0, 100], // Semi-transparent red
+                        "purple_highlight" => [128, 0, 128, 100], // Semi-transparent purple
                         "yellow_cursor" => [255, 255, 0, 150], // Semi-transparent yellow
                         _ => [255, 0, 255, 255],           // Magenta fallback
                     };
@@ -99,6 +107,8 @@ impl IsometricRenderer {
             selected_piece: None,
             legal_moves: Vec::new(),
             cursor_position: None,
+            animation_selected_piece: None,
+            animation_legal_moves: Vec::new(),
             scale,
         }
     }
@@ -198,6 +208,12 @@ impl IsometricRenderer {
         self.selected_piece = piece_pos;
         self.legal_moves = legal_moves;
         self.cursor_position = cursor_pos;
+    }
+
+    /// Set animation highlights for computer moves
+    pub fn set_animation_highlights(&mut self, selected_piece: Option<Position>, legal_moves: Vec<Position>) {
+        self.animation_selected_piece = selected_piece;
+        self.animation_legal_moves = legal_moves;
     }
 
     /// Handle mouse input and return clicked position
@@ -316,29 +332,84 @@ impl IsometricRenderer {
             }
         }
 
-        // Highlight legal moves with green
-        for &move_pos in &self.legal_moves {
-            let screen_pos = self.board_to_screen(move_pos);
-            if let Some(texture) = self.tile_textures.get("green_highlight") {
+        // Highlight animation selected piece (red)
+        if let Some(selected_pos) = self.animation_selected_piece {
+            let screen_pos = self.board_to_screen(selected_pos);
+            if let Some(texture) = self.tile_textures.get("red_highlight") {
                 draw_texture_ex(
                     texture,
                     screen_pos.x,
                     screen_pos.y,
-                    Color::new(0.0, 1.0, 0.0, 0.9), // Bright green, more opaque
+                    Color::new(1.0, 0.0, 0.0, 0.8), // Semi-transparent red
                     DrawTextureParams {
                         dest_size: Some(Vec2::new(self.tile_width, self.tile_height)),
                         ..Default::default()
                     },
                 );
             } else {
-                // Fallback: bright green rectangle
+                // Fallback: red rectangle
                 draw_rectangle(
                     screen_pos.x,
                     screen_pos.y,
                     self.tile_width,
                     self.tile_height,
-                    Color::new(0.0, 1.0, 0.0, 0.7), // Bright green
+                    Color::new(1.0, 0.0, 0.0, 0.6),
                 );
+            }
+        }
+
+        // Highlight legal moves with green (player) or purple (animation)
+        if !self.animation_legal_moves.is_empty() {
+            // Show purple highlights for computer animation
+            for &move_pos in &self.animation_legal_moves {
+                let screen_pos = self.board_to_screen(move_pos);
+                if let Some(texture) = self.tile_textures.get("purple_highlight") {
+                    draw_texture_ex(
+                        texture,
+                        screen_pos.x,
+                        screen_pos.y,
+                        Color::new(0.8, 0.0, 0.8, 0.8), // Bright purple
+                        DrawTextureParams {
+                            dest_size: Some(Vec2::new(self.tile_width, self.tile_height)),
+                            ..Default::default()
+                        },
+                    );
+                } else {
+                    // Fallback: purple rectangle
+                    draw_rectangle(
+                        screen_pos.x,
+                        screen_pos.y,
+                        self.tile_width,
+                        self.tile_height,
+                        Color::new(0.8, 0.0, 0.8, 0.7), // Bright purple
+                    );
+                }
+            }
+        } else {
+            // Show green highlights for player legal moves
+            for &move_pos in &self.legal_moves {
+                let screen_pos = self.board_to_screen(move_pos);
+                if let Some(texture) = self.tile_textures.get("green_highlight") {
+                    draw_texture_ex(
+                        texture,
+                        screen_pos.x,
+                        screen_pos.y,
+                        Color::new(0.0, 1.0, 0.0, 0.9), // Bright green, more opaque
+                        DrawTextureParams {
+                            dest_size: Some(Vec2::new(self.tile_width, self.tile_height)),
+                            ..Default::default()
+                        },
+                    );
+                } else {
+                    // Fallback: bright green rectangle
+                    draw_rectangle(
+                        screen_pos.x,
+                        screen_pos.y,
+                        self.tile_width,
+                        self.tile_height,
+                        Color::new(0.0, 1.0, 0.0, 0.7), // Bright green
+                    );
+                }
             }
         }
 

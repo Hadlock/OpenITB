@@ -224,6 +224,8 @@ impl Move {
 pub enum GameState {
     PlayerTurn,
     ComputerTurn,
+    ComputerThinking,
+    ComputerAnimating,
     GameOver,
 }
 

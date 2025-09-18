@@ -1,5 +1,6 @@
 use openitb_engine::{Engine, Board, GameState, Player, Position, Move};
 use anyhow::Result;
+use std::time::Instant;
 
 /// Main game state manager that orchestrates between GUI, TUI, and Engine
 /// Implements state machine pattern for turn management
@@ -18,6 +19,23 @@ pub struct GameManager {
     debug_mode: bool,
     /// Whether to show coordinate labels on the board
     show_coordinates: bool,
+    /// Computer animation state
+    animation_timer: Option<Instant>,
+    animation_phase: ComputerAnimationPhase,
+    animation_moves: Vec<Move>,
+    current_animation_move: usize,
+    animation_selected_piece: Option<Position>,
+    animation_legal_moves: Vec<Position>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum ComputerAnimationPhase {
+    None,
+    InitialPause,
+    ShowingSelectedPiece,
+    ShowingLegalMoves,
+    ExecutingMove,
+    DelayBetweenMoves,
 }
 
 impl GameManager {
@@ -74,6 +92,12 @@ impl GameManager {
             cursor_position: None,
             debug_mode: false,
             show_coordinates: false,
+            animation_timer: None,
+            animation_phase: ComputerAnimationPhase::None,
+            animation_moves: Vec::new(),
+            current_animation_move: 0,
+            animation_selected_piece: None,
+            animation_legal_moves: Vec::new(),
         }
     }
 
@@ -107,9 +131,27 @@ impl GameManager {
         self.debug_mode
     }
 
-    /// Toggle coordinate display on/off
+    /// Toggle display of coordinate labels
     pub fn toggle_coordinates(&mut self) {
         self.show_coordinates = !self.show_coordinates;
+    }
+
+    /// Get animation selected piece for rendering red highlight
+    pub fn get_animation_selected_piece(&self) -> Option<Position> {
+        if self.game_state == GameState::ComputerAnimating {
+            self.animation_selected_piece
+        } else {
+            None
+        }
+    }
+
+    /// Get animation legal moves for rendering purple highlights  
+    pub fn get_animation_legal_moves(&self) -> Vec<Position> {
+        if self.game_state == GameState::ComputerAnimating {
+            self.animation_legal_moves.clone()
+        } else {
+            Vec::new()
+        }
     }
 
     /// Check if coordinate display is enabled
@@ -209,35 +251,158 @@ impl GameManager {
 
         println!("Processing computer turn...");
         
-        // Get all computer pieces and try to move them
+        // Get all computer pieces and their best moves
         let computer_pieces = self.engine.get_player_pieces(Player::Computer);
-        let mut moves_made = 0;
+        let mut computer_moves = Vec::new();
         
         for (pos, _piece) in computer_pieces {
             if let Some(computer_move) = self.simple_ai_move(pos) {
-                let move_notation = computer_move.to_notation();
-                if let Err(e) = self.engine.make_move(computer_move) {
-                    println!("Computer move failed: {}", e);
-                } else {
-                    println!("Computer moved: {}", move_notation);
-                    moves_made += 1;
-                }
+                computer_moves.push(computer_move);
             }
         }
 
-        println!("Computer made {} moves", moves_made);
+        if computer_moves.is_empty() {
+            // No moves available - end turn
+            self.game_state = GameState::GameOver;
+            return true;
+        }
 
-        // Check if game is over
+        // Start computer animation sequence
+        self.animation_moves = computer_moves;
+        self.current_animation_move = 0;
+        self.animation_phase = ComputerAnimationPhase::InitialPause;
+        self.animation_timer = Some(Instant::now());
+        self.game_state = GameState::ComputerAnimating;
+        
+        println!("Starting computer animation with {} moves", self.animation_moves.len());
+        true
+    }
+
+    /// Update computer animation state machine
+    pub fn update_computer_animation(&mut self) -> bool {
+        if self.game_state != GameState::ComputerAnimating {
+            return false;
+        }
+
+        let Some(timer_start) = self.animation_timer else {
+            return false;
+        };
+
+        let elapsed = timer_start.elapsed().as_secs_f32();
+
+        match self.animation_phase {
+            ComputerAnimationPhase::InitialPause => {
+                if elapsed >= 0.5 {
+                    // Move to next phase - show selected piece
+                    if self.current_animation_move < self.animation_moves.len() {
+                        let current_move = &self.animation_moves[self.current_animation_move];
+                        self.animation_selected_piece = Some(current_move.from);
+                        
+                        // Get legal moves for this piece
+                        self.animation_legal_moves = self.engine.get_legal_moves(current_move.from);
+                        
+                        self.animation_phase = ComputerAnimationPhase::ShowingSelectedPiece;
+                        self.animation_timer = Some(Instant::now());
+                        
+                        println!("Animation: Showing selected piece at {}", current_move.from.to_chess_notation());
+                    }
+                }
+            }
+            ComputerAnimationPhase::ShowingSelectedPiece => {
+                if elapsed >= 0.3 {
+                    // Move to showing legal moves
+                    self.animation_phase = ComputerAnimationPhase::ShowingLegalMoves;
+                    self.animation_timer = Some(Instant::now());
+                    
+                    println!("Animation: Showing {} legal moves", self.animation_legal_moves.len());
+                }
+            }
+            ComputerAnimationPhase::ShowingLegalMoves => {
+                if elapsed >= 1.2 {
+                    // Execute the move
+                    let current_move = self.animation_moves[self.current_animation_move].clone();
+                    let move_notation = current_move.to_notation();
+                    
+                    match self.engine.make_move(current_move) {
+                        Ok(()) => {
+                            println!("Computer executed move: {}", move_notation);
+                            
+                            // Clear animation highlights
+                            self.animation_selected_piece = None;
+                            self.animation_legal_moves.clear();
+                            
+                            self.animation_phase = ComputerAnimationPhase::ExecutingMove;
+                            self.animation_timer = Some(Instant::now());
+                        }
+                        Err(e) => {
+                            println!("Computer move failed: {}", e);
+                            // Skip this move
+                            self.current_animation_move += 1;
+                            self.animation_phase = ComputerAnimationPhase::DelayBetweenMoves;
+                            self.animation_timer = Some(Instant::now());
+                        }
+                    }
+                }
+            }
+            ComputerAnimationPhase::ExecutingMove => {
+                if elapsed >= 0.1 {
+                    // Move to delay between moves or finish
+                    self.current_animation_move += 1;
+                    
+                    if self.current_animation_move >= self.animation_moves.len() {
+                        // All moves completed
+                        self.finish_computer_animation();
+                        return true;
+                    } else {
+                        // Prepare for next move
+                        self.animation_phase = ComputerAnimationPhase::DelayBetweenMoves;
+                        self.animation_timer = Some(Instant::now());
+                    }
+                }
+            }
+            ComputerAnimationPhase::DelayBetweenMoves => {
+                if elapsed >= 0.33 {
+                    // Start next move
+                    if self.current_animation_move < self.animation_moves.len() {
+                        let current_move = &self.animation_moves[self.current_animation_move];
+                        self.animation_selected_piece = Some(current_move.from);
+                        self.animation_legal_moves = self.engine.get_legal_moves(current_move.from);
+                        
+                        self.animation_phase = ComputerAnimationPhase::ShowingSelectedPiece;
+                        self.animation_timer = Some(Instant::now());
+                    }
+                }
+            }
+            ComputerAnimationPhase::None => {
+                // Should not be here
+                self.finish_computer_animation();
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Finish computer animation and return to player turn
+    fn finish_computer_animation(&mut self) {
+        println!("Computer animation finished");
+        
+        // Clear animation state
+        self.animation_timer = None;
+        self.animation_phase = ComputerAnimationPhase::None;
+        self.animation_moves.clear();
+        self.current_animation_move = 0;
+        self.animation_selected_piece = None;
+        self.animation_legal_moves.clear();
+        
+        // Check game state
         if self.engine.is_game_over() {
             self.game_state = GameState::GameOver;
             println!("Game Over!");
         } else {
-            // Switch back to player turn
             self.game_state = GameState::PlayerTurn;
             println!("Switching to player turn");
         }
-
-        true
     }
 
     /// Simple AI: find a legal move for the piece at the given position
@@ -298,6 +463,8 @@ impl GameManager {
                 }
             }
             GameState::ComputerTurn => "Computer is thinking...".to_string(),
+            GameState::ComputerThinking => "Computer is thinking...".to_string(),
+            GameState::ComputerAnimating => "Computer is making moves...".to_string(),
             GameState::GameOver => "Game Over!".to_string(),
         }
     }

@@ -79,12 +79,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 // Update game logic
                 game_manager.update();
+                
+                // Update computer animation if active
+                game_manager.update_computer_animation();
 
                 // Update renderer with current selection
                 renderer.set_selection(
                     game_manager.get_selected_piece(),
                     game_manager.get_legal_moves().to_vec(),
                     game_manager.get_cursor_position()
+                );
+                
+                // Update renderer with computer animation highlights
+                renderer.set_animation_highlights(
+                    game_manager.get_animation_selected_piece(),
+                    game_manager.get_animation_legal_moves()
                 );
 
                 // Render the game
@@ -127,13 +136,17 @@ fn draw_status_overlay(game_manager: &GameManager) {
     // Show current turn
     let turn_msg = match game_manager.get_game_state() {
         GameState::PlayerTurn => "PLAYER TURN",
-        GameState::ComputerTurn => "COMPUTER TURN", 
+        GameState::ComputerTurn => "COMPUTER TURN",
+        GameState::ComputerThinking => "COMPUTER THINKING",
+        GameState::ComputerAnimating => "COMPUTER ANIMATING",
         GameState::GameOver => "GAME OVER",
     };
     
     let turn_color = match game_manager.get_game_state() {
         GameState::PlayerTurn => BLUE,
         GameState::ComputerTurn => RED,
+        GameState::ComputerThinking => ORANGE,
+        GameState::ComputerAnimating => PURPLE,
         GameState::GameOver => YELLOW,
     };
     
